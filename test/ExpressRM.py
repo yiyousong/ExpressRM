@@ -100,7 +100,6 @@ class trainDataset(Dataset):
         self.gene=torch.load('%slg2geneexp.pt'%(data_location)).transpose(1,0)
         self.dataidx=dataidx
         self.tissueidx=np.asarray(tissueidx)
-
     def __getitem__(self, idx):
         # label [B,30+]
         idx=self.dataidx[idx]
@@ -251,7 +250,8 @@ class ExpressRM(pl.LightningModule):
     def forward(self, x, geo, gene, genelocexp):
         # seq [N,501,4]
         # geo [N,24]
-        # gene [37,28k]
+        # gene [37,28k,9]
+        # geneloc [N,1-3,8]
         # lcoexp [N,2]
         batchsize = x.size()[0]
         tissuesize = genelocexp.size()[1]
@@ -340,21 +340,15 @@ class ExpressRM(pl.LightningModule):
         else:
             pred,y,sitelabel,weight=self.shared_step(batch)
             sitepred = pred[:, -1]
-            pred1 = torch.minimum(pred[:, 1],sitepred)
-            pred2 = torch.minimum(pred[:, 2],sitepred)
             y = y.view([-1])
-            self.log(f"{testlabel[dataloader_idx]}_acc", self.acc(pred[:, 0], y),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_auc", self.auc(pred[:, 0], y),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_mcc", self.mcc(pred[:, 0], y),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_acc_unweighted", self.acc(pred1, y),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_auc_unweighted", self.auc(pred1, y),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_mcc_unweighted", self.mcc(pred1, y),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_acc_weighted", self.acc(pred2, y),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_auc_weighted", self.auc(pred2, y),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_mcc_weighted", self.mcc(pred2, y),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_acc_site", self.acc(sitepred, sitelabel),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_auc_site", self.auc(sitepred, sitelabel),on_epoch=True)
-            self.log(f"{testlabel[dataloader_idx]}_mcc_site", self.mcc(sitepred, sitelabel),on_epoch=True)
+            if dataloader_idx==3:
+                self.log(f"{testlabel[dataloader_idx]}_acc", self.acc(sitepred, sitelabel),on_epoch=True)
+                self.log(f"{testlabel[dataloader_idx]}_auc", self.auc(sitepred, sitelabel),on_epoch=True)
+                self.log(f"{testlabel[dataloader_idx]}_mcc", self.mcc(sitepred, sitelabel),on_epoch=True)
+            else:
+                self.log(f"{testlabel[dataloader_idx]}_acc", self.acc(pred[:, 0], y),on_epoch=True)
+                self.log(f"{testlabel[dataloader_idx]}_auc", self.auc(pred[:, 0], y),on_epoch=True)
+                self.log(f"{testlabel[dataloader_idx]}_mcc", self.mcc(pred[:, 0], y),on_epoch=True)
     def test_step(self, batch, batch_idx, dataloader_idx):
         self.training=False
         self.eval()
@@ -363,20 +357,14 @@ class ExpressRM(pl.LightningModule):
         # it is independent of forward
         pred,y,sitelabel,weight=self.shared_step(batch)
         sitepred = pred[:, -1]
-        pred1 = torch.minimum(pred[:, 1],sitepred)
-        pred2 = torch.minimum(pred[:, 2],sitepred)
-        self.log(f"{testlabel[dataloader_idx]}_acc", self.acc(pred[:, 0], y),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_auc", self.auc(pred[:, 0], y),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_mcc", self.mcc(pred[:, 0], y),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_acc_unweighted", self.acc(pred1, y),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_auc_unweighted", self.auc(pred1, y),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_mcc_unweighted", self.mcc(pred1, y),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_acc_weighted", self.acc(pred2, y),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_auc_weighted", self.auc(pred2, y),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_mcc_weighted", self.mcc(pred2, y),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_acc_site", self.acc(sitepred, sitelabel),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_auc_site", self.auc(sitepred, sitelabel),on_epoch=True,on_step=True)
-        self.log(f"{testlabel[dataloader_idx]}_mcc_site", self.mcc(sitepred, sitelabel),on_epoch=True,on_step=True)
+        if dataloader_idx==2:
+            self.log(f"{testlabel[dataloader_idx]}_acc", self.acc(sitepred, sitelabel),on_epoch=True,on_step=True)
+            self.log(f"{testlabel[dataloader_idx]}_auc", self.auc(sitepred, sitelabel),on_epoch=True,on_step=True)
+            self.log(f"{testlabel[dataloader_idx]}_mcc", self.mcc(sitepred, sitelabel),on_epoch=True,on_step=True)
+        else:
+            self.log(f"{testlabel[dataloader_idx]}_acc", self.acc(pred[:, 0], y),on_epoch=True,on_step=True)
+            self.log(f"{testlabel[dataloader_idx]}_auc", self.auc(pred[:, 0], y),on_epoch=True,on_step=True)
+            self.log(f"{testlabel[dataloader_idx]}_mcc", self.mcc(pred[:, 0], y),on_epoch=True,on_step=True)
 if __name__ == '__main__':
     if int(args.epoch)==0:
         minepoch=200

@@ -40,7 +40,7 @@ parser.add_argument('--tgeo', default=False, help='')
 parser.add_argument('--featurelist', default=None, help='1,0,0,0,0\n sequence,gene,genelocexp,geo,tgeo')
 parser.add_argument('--radius', default=1000, help='2*radius+1')
 parser.add_argument('--epoch', default=0, help='')
-parser.add_argument('--prefix', default='AdaptRM', help='')
+parser.add_argument('--prefix', default='AdaptRM-v0', help='')
 parser.add_argument('--autoprefix', default=True, help='')
 parser.add_argument('--trainlist', default=None, help='use testlist')
 parser.add_argument('--testlist', default=None, help='drop idx (during training) or leaveoneout')
@@ -174,12 +174,11 @@ class AdaptRM(pl.LightningModule):
         self.learning_rate = lr
         self.save_hyperparameters()
         self.model = nn.Sequential(
-                            nn.Conv1d(4, 64, 11,5), nn.BatchNorm1d(64), nn.LeakyReLU(), nn.Dropout(droprate),
-                              nn.Conv1d(64,128,7),nn.BatchNorm1d(128), nn.LeakyReLU(),nn.Dropout(droprate),
-                              nn.Conv1d(128,128,7),nn.BatchNorm1d(128), nn.LeakyReLU(),nn.Dropout(droprate),
+                            nn.Conv1d(4, 32, 7), nn.BatchNorm1d(32), nn.LeakyReLU(), nn.Dropout(droprate),
+                              nn.Conv1d(32,64,7),nn.BatchNorm1d(64), nn.LeakyReLU(),nn.Dropout(droprate),
                               nn.AdaptiveAvgPool1d(19),
-                              nn.Conv1d(128,64,7),nn.BatchNorm1d(64), nn.LeakyReLU(),nn.Dropout(droprate),
-                              nn.Conv1d(64,64,7),nn.BatchNorm1d(64), nn.LeakyReLU(),nn.Dropout(droprate),
+                              nn.Conv1d(64,32,7),nn.BatchNorm1d(32), nn.LeakyReLU(),nn.Dropout(droprate),
+                              nn.Conv1d(32,64,7),nn.BatchNorm1d(64), nn.LeakyReLU(),nn.Dropout(droprate),
             nn.Flatten(-2),
                               nn.Linear(7 * 64,1000),nn.LeakyReLU(),nn.Dropout(droprate),nn.Linear(1000,38)
                               )
