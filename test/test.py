@@ -6,6 +6,10 @@ import numpy as np
 import pandas as pd
 from Bio import SeqIO
 from ExpressRM import *
+if torch.cuda.is_available():
+    device=torch.device('cuda')
+else:
+    device=torch.device('cpu')
 def fasta2binonehot(data):
     # data is a list of sequence: [n,seqlength]
     # possibly need list version where seqlength differ
@@ -51,23 +55,23 @@ for i in range(len(BAM_list)):
     commands.append('stringtie %s -e -G %s -A %s/geneexp%d.tab > %s/tmp.tmp'%(BAM,args.refgene,args.output,i,args.output))
     commands.append('stringtie %s -o %s/transcriptome%d.gtf > %s/tmp.tmp' % (BAM, args.output,i,args.output))
 print('stringtie preprocessing this could take a long time')
-procs = [ Popen(i, shell=True) for i in commands ]
-for p in procs:
-    p.wait()
-
-print('calculating geographic encoding may take huge amounts of time(~ oneday for default 252009 sites)')
-geneexpfile=''
-for i in range(len(BAM_list)):
-    geneexpfile+='%s/geneexp%d.tab,'%(args.output,i)
-geneexpfile=geneexpfile[:-1]
-Rcommands = ['Rscript gene.R %s %s %s %s %s'%(args.site,geneexpfile,args.output,args.refgene,file_path),
-             'Rscript geo.R %s %s %s/geo.csv'%(args.site,args.refgene,args.output)]
-for i in range(len(BAM_list)):
-    Rcommands.append(
-             'Rscript geo.R %s %s/transcriptome%d.gtf %s/tgeo%d.csv'%(args.site,args.output,i,args.output,i))
-procs = [ Popen(i, shell=True) for i in Rcommands ]
-for p in procs:
-   p.wait()
+# procs = [ Popen(i, shell=True) for i in commands ]
+# for p in procs:
+#     p.wait()
+#
+# print('calculating geographic encoding may take huge amounts of time(~ oneday for default 252009 sites)')
+# geneexpfile=''
+# for i in range(len(BAM_list)):
+#     geneexpfile+='%s/geneexp%d.tab,'%(args.output,i)
+# geneexpfile=geneexpfile[:-1]
+# Rcommands = ['Rscript gene.R %s %s %s %s %s'%(args.site,geneexpfile,args.output,args.refgene,file_path),
+#              'Rscript geo.R %s %s %s/geo.csv'%(args.site,args.refgene,args.output)]
+# for i in range(len(BAM_list)):
+#     Rcommands.append(
+#              'Rscript geo.R %s %s/transcriptome%d.gtf %s/tgeo%d.csv'%(args.site,args.output,i,args.output,i))
+# procs = [ Popen(i, shell=True) for i in Rcommands ]
+# for p in procs:
+#    p.wait()
 print('loading processed data')
 seq_list=[]
 for seq_record in SeqIO.parse('%s/sequence.fasta'%(args.output),format='fasta'):
@@ -75,6 +79,7 @@ for seq_record in SeqIO.parse('%s/sequence.fasta'%(args.output),format='fasta'):
     seq_list.append(sequence)
 seq_list=np.asarray(seq_list)
 sequence=fasta2binonehot(seq_list)
+print('sequence encoded')
 geo_list=[]
 for i in range(len(BAM_list)):
     refgeo=np.asarray(pd.read_csv('%s/geo.csv'%(args.output)))[:,6:]
@@ -85,12 +90,12 @@ geo=np.array(geo_list).transpose([1,0,2])
 hostgeneexp=np.asarray(pd.read_csv('%s/lg2hosting_expression.csv'%(args.output)))
 geneexp=np.asarray(pd.read_csv('%s/lg2geneexp.csv'%(args.output),index_col=0))
 print('loading model')
-model=ExpressRM().load_from_checkpoint(args.model)
+model=ExpressRM().load_from_checkpoint(args.model,map_location=device)
 model.eval()
-sequence=torch.as_tensor(sequence).cuda().float()
-geo=torch.as_tensor(geo).cuda().float()
-hostgeneexp=torch.as_tensor(hostgeneexp).cuda().float().unsqueeze(2)
-geneexp=torch.as_tensor(geneexp).cuda().float().transpose(1,0)
+sequence=torch.as_tensor(sequence).float().to(device)
+geo=torch.as_tensor(geo).float().to(device)
+hostgeneexp=torch.as_tensor(hostgeneexp).float().unsqueeze(2).to(device)
+geneexp=torch.as_tensor(geneexp).float().transpose(1,0).to(device)
 pred_list=[]
 batchsize=int(args.batchsize)
 for i in range(int(np.ceil(len(sequence)/batchsize))):
