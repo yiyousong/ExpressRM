@@ -12,18 +12,19 @@ adaptoutsize=8
 import argparse
 import sklearn
 # print('')
-label=pd.read_csv('/data1/yiyou/ExpressRM/selectedlabel.csv',header=0)
+folder_path='/data1/yiyou/ExpressRM'
+label=pd.read_csv('%s/selectedlabel.csv'%(folder_path),header=0)
 tissuelist=label.columns[:-1]
 trainidx=np.arange(252009)
 np.random.shuffle(trainidx)
 testidx=trainidx[:6009]
 trainidx=trainidx[6009:]
-np.save('/data1/yiyou/ExpressRM/testidx.npy',testidx)
-np.save('/data1/yiyou/ExpressRM/trainidx.npy',trainidx)
-# trainidx=np.load('/data1/yiyou/ExpressRM/trainidx.npy')
-# testidx=np.load('/data1/yiyou/ExpressRM/testidx.npy')
+np.save('%s/testidx.npy'%(folder_path),testidx)
+np.save('%s/trainidx.npy'%(folder_path),trainidx)
+# trainidx=np.load('%s/trainidx.npy'%(folder_path))
+# testidx=np.load('%s/testidx.npy'%(folder_path))
 
-# torch.save(torch.as_tensor(np.sum(1-label,axis=0)/np.sum(label,axis=0)).cuda().float(),'/data1/yiyou/ExpressRM/lossweight.pt')
+# torch.save(torch.as_tensor(np.sum(1-label,axis=0)/np.sum(label,axis=0)).cuda().float(),'%s/lossweight.pt'%(folder_path))
 
 def fasta2binonehot(data):
 # data is a list of sequence: [n,seqlength]
@@ -77,60 +78,60 @@ for j in range(37):
     selectedidxneg=testidx[np.where(selectedidx==0)[0]]
     test_idx=np.append(np.random.permutation(selectedidxpos)[:1000],np.random.permutation(selectedidxneg)[:1000])
     test_idx_list.append(test_idx)
-# np.save('/data1/yiyou/ExpressRM/tissue_specificityidx.npy',any_pos_idx)
-# rigidtestidx=np.load('/data1/yiyou/ExpressRM/tissue_specificityidx.npy')
-# testidx=np.load('/data1/yiyou/ExpressRM/testidx.npy')
-np.save('/data1/yiyou/ExpressRM/tissue_specificityidx.npy',np.array(tissue_specificity_idx_list))
-np.save('/data1/yiyou/ExpressRM/testidx_balanced.npy',np.array(test_idx_list))
-np.save('/data1/yiyou/ExpressRM/sitetestidx.npy',site_idx)
-geneexp=pd.read_csv('/data1/yiyou/ExpressRM/gene_expression/lg2geneexp.csv',index_col='GeneName')
+# np.save('%s/tissue_specificityidx.npy'%(folder_path),any_pos_idx)
+# rigidtestidx=np.load('%s/tissue_specificityidx.npy'%(folder_path))
+# testidx=np.load('%s/testidx.npy'%(folder_path))
+np.save('%s/tissue_specificityidx.npy'%(folder_path),np.array(tissue_specificity_idx_list))
+np.save('%s/testidx_balanced.npy'%(folder_path),np.array(test_idx_list))
+np.save('%s/sitetestidx.npy'%(folder_path),site_idx)
+geneexp=pd.read_csv('%s/gene_expression/lg2geneexp.csv'%(folder_path),index_col='GeneName')
 # geneidx=geneexp.index
-torch.save(torch.as_tensor(np.asarray(geneexp)).float().cuda(),'/data1/yiyou/ExpressRM/tensor/lg2geneexp.pt')
+torch.save(torch.as_tensor(np.asarray(geneexp)).float().cuda(),'%s/tensor/lg2geneexp.pt'%(folder_path))
 for i in range(num_folder):
     labelseg=label.iloc[trainidx[seglength*i:seglength*(i+1)]]
     labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
-    torch.save(labelseg,'/data1/yiyou/ExpressRM/tensor/label_%d.pt'%(i))
+    torch.save(labelseg,'%s/tensor/label_%d.pt'%(folder_path,i))
 labelseg=label.iloc[site_idx]
 labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
-torch.save(labelseg,'/data1/yiyou/ExpressRM/tensor/label_sitetest.pt')
+torch.save(labelseg,'%s/tensor/label_sitetest.pt'%(folder_path))
 for j in range(37):
     labelseg=label.iloc[tissue_specificity_idx_list[j]]
     labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
-    torch.save(labelseg,'/data1/yiyou/ExpressRM/tensor/label_tissuetest_%d.pt'%(j))
+    torch.save(labelseg,'%s/tensor/label_tissuetest_%d.pt'%(folder_path,j))
     labelseg=label.iloc[test_idx_list[j]]
     labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
-    torch.save(labelseg,'/data1/yiyou/ExpressRM/tensor/label_test_%d.pt'%(j))
+    torch.save(labelseg,'%s/tensor/label_test_%d.pt'%(folder_path,j))
 
 seq_list=[]
-for seq_record in SeqIO.parse('/data1/yiyou/ExpressRM/selected.fasta',format='fasta'):
+for seq_record in SeqIO.parse('%s/selected.fasta'%(folder_path),format='fasta'):
     sequence=seq_record.seq
     seq_list.append(sequence)
 seq_list=np.asarray(seq_list)
 sequence=fasta2binonehot(seq_list)
-# np.save('/data1/yiyou/ExpressRM/sequence.npy',sequence)
-# sequence=np.load('/data1/yiyou/ExpressRM/sequence.npy')
+# np.save('%s/sequence.npy'%(folder_path),sequence)
+# sequence=np.load('%s/sequence.npy'%(folder_path))
 print(sequence.shape)
 
 for i in range(num_folder):
     sequenceseg=sequence[trainidx[seglength*i:seglength*(i+1)]]
     sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
-    torch.save(sequenceseg,'/data1/yiyou/ExpressRM/tensor/sequence_%d.pt'%(i))
+    torch.save(sequenceseg,'%s/tensor/sequence_%d.pt'%(folder_path,i))
 sequenceseg=sequence[site_idx]
 sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
-torch.save(sequenceseg,'/data1/yiyou/ExpressRM/tensor/sequence_sitetest.pt')
+torch.save(sequenceseg,'%s/tensor/sequence_sitetest.pt'%(folder_path))
 for j in range(37):
     sequenceseg=sequence[tissue_specificity_idx_list[j]]
     sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
-    torch.save(sequenceseg,'/data1/yiyou/ExpressRM/tensor/sequence_tissuetest_%d.pt'%(j))
+    torch.save(sequenceseg,'%s/tensor/sequence_tissuetest_%d.pt'%(folder_path,j))
     sequenceseg=sequence[test_idx_list[j]]
     sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
-    torch.save(sequenceseg,'/data1/yiyou/ExpressRM/tensor/sequence_test_%d.pt'%(j))
+    torch.save(sequenceseg,'%s/tensor/sequence_test_%d.pt'%(folder_path,j))
 ###################### Geo #############################
 geo_list=[]
-geo1=np.asarray(pd.read_csv('/data1/yiyou/ExpressRM/geo/geo.csv',header=0))
+geo1=np.asarray(pd.read_csv('%s/geo/geo.csv'%(folder_path),header=0))
 for tissue in tissuelist:
-    # geo1=np.asarray(pd.read_csv('/data1/yiyou/ExpressRM/geo/geo.csv',header=0))
-    geo2=np.asarray(pd.read_csv('/data1/yiyou/ExpressRM/geo/%s.csv'%(tissue),header=0))
+    # geo1=np.asarray(pd.read_csv('%s/geo/geo.csv'%(folder_path),header=0))
+    geo2=np.asarray(pd.read_csv('%s/geo/%s.csv'%(folder_path,tissue),header=0))
     geo=np.append(geo1[:,6:],geo2[:,6:],axis=-1)
     geo_list.append(geo)
 geo=np.asarray(geo_list).transpose([1,0,2])
@@ -138,28 +139,28 @@ print(geo.shape)
 for i in range(num_folder):
     geoseg=geo[trainidx[seglength*i:seglength*(i+1)]]
     geoseg=torch.as_tensor(geoseg).cuda().float()
-    torch.save(geoseg,'/data1/yiyou/ExpressRM/tensor/geo_%d.pt'%(i))
+    torch.save(geoseg,'%s/tensor/geo_%d.pt'%(folder_path,i))
 geoseg=geo[site_idx]
 geoseg=torch.as_tensor(geoseg).cuda().float()
-torch.save(geoseg,'/data1/yiyou/ExpressRM/tensor/geo_sitetest.pt')
+torch.save(geoseg,'%s/tensor/geo_sitetest.pt'%(folder_path))
 for j in range(37):
     geoseg=geo[tissue_specificity_idx_list[j],j:j+1]
     geoseg=torch.as_tensor(geoseg).cuda().float()
-    torch.save(geoseg,'/data1/yiyou/ExpressRM/tensor/geo_tissuetest_%d.pt'%(j))
+    torch.save(geoseg,'%s/tensor/geo_tissuetest_%d.pt'%(folder_path,j))
     geoseg=geo[test_idx_list[j],j:j+1]
     geoseg=torch.as_tensor(geoseg).cuda().float()
-    torch.save(geoseg,'/data1/yiyou/ExpressRM/tensor/geo_test_%d.pt'%(j))
+    torch.save(geoseg,'%s/tensor/geo_test_%d.pt'%(folder_path,j))
     # print(geo[tissue_specificity_idx_list[j],j:j+1].shape)
-genelocexp=np.asarray(pd.read_csv('/data1/yiyou/ExpressRM/gene_expression/lg2hosting_expression.csv'))
+genelocexp=np.asarray(pd.read_csv('%s/gene_expression/lg2hosting_expression.csv'%(folder_path)))
 for i in range(num_folder):
     tmp=torch.as_tensor(genelocexp[trainidx[i*seglength:(i+1)*seglength]]).float().cuda()
-    torch.save(tmp,'/data1/yiyou/ExpressRM/tensor/genelocexp_%d.pt'%(i))
+    torch.save(tmp,'%s/tensor/genelocexp_%d.pt'%(folder_path,i))
 tmp=torch.as_tensor(genelocexp[site_idx]).float().cuda()
 print(tmp.shape)
-torch.save(tmp,'/data1/yiyou/ExpressRM/tensor/genelocexp_sitetest.pt')
+torch.save(tmp,'%s/tensor/genelocexp_sitetest.pt'%(folder_path))
 
 for j in range(37):
     tmp=torch.as_tensor(genelocexp[tissue_specificity_idx_list[j],j:j+1]).float().cuda()
-    torch.save(tmp,'/data1/yiyou/ExpressRM/tensor/genelocexp_tissuetest_%d.pt'%(j))
+    torch.save(tmp,'%s/tensor/genelocexp_tissuetest_%d.pt'%(folder_path,j))
     tmp=torch.as_tensor(genelocexp[test_idx_list[j],j:j+1]).float().cuda()
-    torch.save(tmp,'/data1/yiyou/ExpressRM/tensor/genelocexp_test_%d.pt'%(j))
+    torch.save(tmp,'%s/tensor/genelocexp_test_%d.pt'%(folder_path,j))
