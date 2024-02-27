@@ -31,12 +31,17 @@ tissuelist=str_sub(filelist,1,-5)
 write(tissuelist,paste0(mainfolder,'tissuename.txt'))
 transcripts=refg[refg$type=='transcript']
 writeXStringSet(seq2001$refseq_2001,paste0(mainfolder,'selected.fasta'))
+
+### comment out this section if the input file does not contain labels ###
 label=data.frame(seq2001@elementMetadata[2:39])
 colnames(label)=c('Site-label',colnames(seq2001@elementMetadata)[3:39])
 label[1]=(label[1]=='P')
 label=label*(data.frame(seq2001@elementMetadata[2])=='P')
 label=label[ , c(order(colnames(label)[2:38])+1,1)]
 write.table(label,paste0(mainfolder,'selectedlabel.csv'),sep=',',row.names = FALSE)
+### comment out this section if the input file does not contain labels ###
+### you still need to generate a selectedlabel.csv using other methods after removing this section ###
+
 genetab_path=paste0(genetabfolder,tissuelist[1],'.tab')
 gene_exp_table=read.table(genetab_path,header=1,sep='\t')
 genename=sort(unique(gene_exp_table$Gene.ID))
