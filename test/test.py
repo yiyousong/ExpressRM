@@ -55,23 +55,23 @@ for i in range(len(BAM_list)):
     commands.append('stringtie %s -e -G %s -A %s/geneexp%d.tab > %s/tmp.tmp'%(BAM,args.refgene,args.output,i,args.output))
     commands.append('stringtie %s -o %s/transcriptome%d.gtf > %s/tmp.tmp' % (BAM, args.output,i,args.output))
 print('stringtie preprocessing this could take a long time')
-# procs = [ Popen(i, shell=True) for i in commands ]
-# for p in procs:
-#     p.wait()
-#
-# print('calculating geographic encoding may take huge amounts of time(~ oneday for default 252009 sites)')
-# geneexpfile=''
-# for i in range(len(BAM_list)):
-#     geneexpfile+='%s/geneexp%d.tab,'%(args.output,i)
-# geneexpfile=geneexpfile[:-1]
-# Rcommands = ['Rscript gene.R %s %s %s %s %s'%(args.site,geneexpfile,args.output,args.refgene,file_path),
-#              'Rscript geo.R %s %s %s/geo.csv'%(args.site,args.refgene,args.output)]
-# for i in range(len(BAM_list)):
-#     Rcommands.append(
-#              'Rscript geo.R %s %s/transcriptome%d.gtf %s/tgeo%d.csv'%(args.site,args.output,i,args.output,i))
-# procs = [ Popen(i, shell=True) for i in Rcommands ]
-# for p in procs:
-#    p.wait()
+procs = [ Popen(i, shell=True) for i in commands ]
+for p in procs:
+    p.wait()
+
+print('calculating geographic encoding may take huge amounts of time(~ oneday for default 252009 sites)')
+geneexpfile=''
+for i in range(len(BAM_list)):
+    geneexpfile+='%s/geneexp%d.tab,'%(args.output,i)
+geneexpfile=geneexpfile[:-1]
+Rcommands = ['Rscript gene.R %s %s %s %s %s'%(args.site,geneexpfile,args.output,args.refgene,file_path),
+             'Rscript geo.R %s %s %s/geo.csv'%(args.site,args.refgene,args.output)]
+for i in range(len(BAM_list)):
+    Rcommands.append(
+             'Rscript geo.R %s %s/transcriptome%d.gtf %s/tgeo%d.csv'%(args.site,args.output,i,args.output,i))
+procs = [ Popen(i, shell=True) for i in Rcommands ]
+for p in procs:
+   p.wait()
 print('loading processed data')
 seq_list=[]
 for seq_record in SeqIO.parse('%s/sequence.fasta'%(args.output),format='fasta'):
