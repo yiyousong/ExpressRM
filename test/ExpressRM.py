@@ -1,10 +1,3 @@
-# folder_prefix = '/gpfs/work/bio/jiameng/yiyou/V3'
-folder_prefix = '/gpfs/work/bio/yiyousong15/ExpressRMV1.1'
-# data_location = '/gpfs/work/bio/yiyousong15/ExpressRMv3/data/'
-genevaepath='/gpfs/work/bio/yiyousong15/ExpressRM/model/BTCGeneVAE/epoch=61-step=6200.ckpt'
-# folder_prefix = '/data1/yiyou/ExpressRMv2'
-# data_location = '/data1/yiyou/ExpressRMv2/data/'
-data_location='/gpfs/work/bio/yiyousong15/ExpressRMV1.1/tensor/'
 dim = 64
 droprate = 0.25
 adaptoutsize = 15
@@ -30,22 +23,27 @@ from functools import reduce
 # from torch.utils.tensorboard import SummaryWriter
 # writer = SummaryWriter()
 # torch.set_num_threads(10)
-parser = argparse.ArgumentParser()
-parser.add_argument('--model_path', default=None, help='add path to continue training else start anew')
+parser = argparse.ArgumentParser(description='''do not call this file, use test.py. ''',
+    epilog="""do not call this file, use test.py.""")
+parser.add_argument('--model_path', default=None, help='')
 parser.add_argument('--seq', default=True, help='')
-parser.add_argument('--gene', default=False, help='')
-parser.add_argument('--genelocexp', default=False, help='')
-parser.add_argument('--geo', default=False, help='')
-parser.add_argument('--tgeo', default=False, help='')
-parser.add_argument('--featurelist', default=None, help='1,0,0,0,0\n sequence,gene,genelocexp,geo,tgeo')
-parser.add_argument('--radius', default=1000, help='2*radius+1')
+parser.add_argument('--gene', default=True, help='')
+parser.add_argument('--genelocexp', default=True, help='')
+parser.add_argument('--geo', default=True, help='')
+parser.add_argument('--tgeo', default=True, help='')
+parser.add_argument('--featurelist', default=None, help='')
+parser.add_argument('--radius', default=1000, help='')
 parser.add_argument('--epoch', default=0, help='')
 parser.add_argument('--prefix', default='', help='')
 parser.add_argument('--autoprefix', default=True, help='')
-parser.add_argument('--trainlist', default=None, help='use testlist')
-parser.add_argument('--testlist', default=None, help='drop idx (during training) or leaveoneout')
-parser.add_argument('--precision', default=32, help='precision')
+parser.add_argument('--trainlist', default=None, help='')
+parser.add_argument('--testlist', default=None, help='')
+parser.add_argument('--precision', default=32, help='')
+parser.add_argument('--out_folder', default='/gpfs/work/bio/yiyousong15/ExpressRMV1.1', help='')
+parser.add_argument('--data_location', default='/gpfs/work/bio/yiyousong15/ExpressRMV1.1/tensor/', help='')
 args, unknown = parser.parse_known_args()
+data_location=args.data_location
+folder_prefix=args.out_folder
 if args.featurelist is None:
     useseq = bool(int(args.seq))
     usegene = bool(int(args.gene))
