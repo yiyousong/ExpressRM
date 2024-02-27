@@ -1,3 +1,5 @@
+first prepare the data using the scripts in preparation folder then run ExpressRM.py to train
+
 run ExpressRM.py -h for help
 only the comments in ExpressRM.py are curated. the rest can be outdated
 you do not need to change the scripts in this folder
