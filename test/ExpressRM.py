@@ -23,8 +23,8 @@ from functools import reduce
 # from torch.utils.tensorboard import SummaryWriter
 # writer = SummaryWriter()
 # torch.set_num_threads(10)
-parser = argparse.ArgumentParser(description='''do not call this file, use test.py. ''',
-    epilog="""do not call this file, use test.py.""")
+parser = argparse.ArgumentParser(description='''do not run this file, use test.py. ''',
+    epilog="""do not run this file, use test.py.""")
 parser.add_argument('--model_path', default=None, help='')
 parser.add_argument('--seq', default=True, help='')
 parser.add_argument('--gene', default=True, help='')
@@ -364,69 +364,70 @@ class ExpressRM(pl.LightningModule):
             self.log(f"{testlabel[dataloader_idx]}_auc", self.auc(pred[:, 0], y),on_epoch=True,on_step=True)
             self.log(f"{testlabel[dataloader_idx]}_mcc", self.mcc(pred[:, 0], y),on_epoch=True,on_step=True)
 if __name__ == '__main__':
-    if int(args.epoch)==0:
-        minepoch=200
-        maxepoch=200
-    else:
-        minepoch=int(args.epoch)
-        maxepoch=int(args.epoch)
-    # print('model will save to %s/model/%s.pt'%(folder_prefix,prefix))
-    checkpoint_callback = ModelCheckpoint(dirpath='%s/model/%s/'%(folder_prefix,prefix))
-    logger = CSVLogger("lightning_logs", name=prefix)
-    if args.precision!='bf16-mixed':
-        args.precision=int(args.precision)
-    trainer = pl.Trainer(
-        accelerator="gpu", devices=1,
-        # benchmark=True,
-        logger=logger,
-        enable_progress_bar=False,
-        max_epochs=maxepoch,
-        min_epochs=minepoch,
-        precision=args.precision,
-        # overfit_batches=2,
-        # this will reduce number of samples used, for debugging
-        callbacks=[pl.callbacks.EarlyStopping('valid_loss/dataloader_idx_0',patience=50),checkpoint_callback],
-        check_val_every_n_epoch=1,
-        # limit_val_batches=1,
-        # use limit_XXX_batches=? to run part of the sample(for testing later steps)
-        # for example when checking gpu usage using log_gpu_memory='all'
+    print('do not run this file, use test.py')
+    # if int(args.epoch)==0:
+    #     minepoch=200
+    #     maxepoch=200
+    # else:
+    #     minepoch=int(args.epoch)
+    #     maxepoch=int(args.epoch)
+    # # print('model will save to %s/model/%s.pt'%(folder_prefix,prefix))
+    # checkpoint_callback = ModelCheckpoint(dirpath='%s/model/%s/'%(folder_prefix,prefix))
+    # logger = CSVLogger("lightning_logs", name=prefix)
+    # if args.precision!='bf16-mixed':
+    #     args.precision=int(args.precision)
+    # trainer = pl.Trainer(
+    #     accelerator="gpu", devices=1,
+    #     # benchmark=True,
+    #     logger=logger,
+    #     enable_progress_bar=False,
+    #     max_epochs=maxepoch,
+    #     min_epochs=minepoch,
+    #     precision=args.precision,
+    #     # overfit_batches=2,
+    #     # this will reduce number of samples used, for debugging
+    #     callbacks=[pl.callbacks.EarlyStopping('valid_loss/dataloader_idx_0',patience=50),checkpoint_callback],
+    #     check_val_every_n_epoch=1,
+    #     # limit_val_batches=1,
+    #     # use limit_XXX_batches=? to run part of the sample(for testing later steps)
+    #     # for example when checking gpu usage using log_gpu_memory='all'
 
-        #     default_root_dir=log_path,
-        #     auto_scale_batch_size=True,
-        #     auto_lr_find='lr',
-        #     track_grad_norm='inf',
-        #     gradient_clip_val=1, gradient_clip_algorithm="value",
-        #     weights_summary='top',
-        #     #profiler=pl.profiler.Advanced_profiler
-        #     gpus=1,auto_select_gpus=True,
-        # use benchmark=True when input size does not change
-        # setting deterministic=True give reproducible result but harms performance
+    #     #     default_root_dir=log_path,
+    #     #     auto_scale_batch_size=True,
+    #     #     auto_lr_find='lr',
+    #     #     track_grad_norm='inf',
+    #     #     gradient_clip_val=1, gradient_clip_algorithm="value",
+    #     #     weights_summary='top',
+    #     #     #profiler=pl.profiler.Advanced_profiler
+    #     #     gpus=1,auto_select_gpus=True,
+    #     # use benchmark=True when input size does not change
+    #     # setting deterministic=True give reproducible result but harms performance
 
-    )
-    if args.model_path is not None:
-        if args.model_path.endswith('pt'):
-            model = torch.load(args.model_path)
-        elif args.model_path.endswith('ckpt'):
-            model = ExpressRM().load_from_checkpoint(args.model_path)
-        elif args.model_path.endswith('/'):
-            model = ExpressRM().load_from_checkpoint('%s%s' % (args.model_path, os.listdir(args.model_path)[0]))
-        else:
-            raise NotImplementedError
-        model.useseq=useseq
-        model.usegeo=usegeo
-        model.usegene=usegene
-        model.usegenelocexp=usegenelocexp
-        model.usetgeo=usetgeo
-    else:
-        model = ExpressRM(useseq = useseq,usegeo = usegeo,usegene = usegene,usegenelocexp = usegenelocexp,usetgeo = usetgeo)
-    data_module = PLDataModule(batch_size=2)
-    trainer.fit(model, data_module)
-    trainer.test(ckpt_path="best", dataloaders=data_module)
-    print(prefix)
-    # model.trainer.current_epoch = 0
+    # )
+    # if args.model_path is not None:
+    #     if args.model_path.endswith('pt'):
+    #         model = torch.load(args.model_path)
+    #     elif args.model_path.endswith('ckpt'):
+    #         model = ExpressRM().load_from_checkpoint(args.model_path)
+    #     elif args.model_path.endswith('/'):
+    #         model = ExpressRM().load_from_checkpoint('%s%s' % (args.model_path, os.listdir(args.model_path)[0]))
+    #     else:
+    #         raise NotImplementedError
+    #     model.useseq=useseq
+    #     model.usegeo=usegeo
+    #     model.usegene=usegene
+    #     model.usegenelocexp=usegenelocexp
+    #     model.usetgeo=usetgeo
+    # else:
+    #     model = ExpressRM(useseq = useseq,usegeo = usegeo,usegene = usegene,usegenelocexp = usegenelocexp,usetgeo = usetgeo)
+    # data_module = PLDataModule(batch_size=2)
     # trainer.fit(model, data_module)
-    # trainer.test(ckpt_path="best",dataloaders=data_module)
-    # trainer.test(ckpt_path="last",dataloaders=data_module)
-    # trainer.test(model, data_module)
-    # torch.save(model, '%s/model/%s.pt'%(folder_prefix,prefix))
-    # print('model saved to %s/model/%s.pt'%(folder_prefix,prefix))
+    # trainer.test(ckpt_path="best", dataloaders=data_module)
+    # print(prefix)
+    # # model.trainer.current_epoch = 0
+    # # trainer.fit(model, data_module)
+    # # trainer.test(ckpt_path="best",dataloaders=data_module)
+    # # trainer.test(ckpt_path="last",dataloaders=data_module)
+    # # trainer.test(model, data_module)
+    # # torch.save(model, '%s/model/%s.pt'%(folder_prefix,prefix))
+    # # print('model saved to %s/model/%s.pt'%(folder_prefix,prefix))
