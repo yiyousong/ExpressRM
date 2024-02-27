@@ -1,4 +1,3 @@
-#was in ipynb, copied to py for non-jupyter viewing.
 import os
 import scipy
 import numpy as np
@@ -11,7 +10,6 @@ import pickle
 adaptoutsize=8
 import argparse
 import sklearn
-# print('')
 folder_path='/data1/yiyou/ExpressRM'
 label=pd.read_csv('%s/selectedlabel.csv'%(folder_path),header=0)
 tissuelist=label.columns[:-1]
@@ -47,25 +45,33 @@ def fasta2binonehot(data):
     bindata = np.append(bindata, G, axis=-1)
     bindata = np.append(bindata, U, axis=-1)
     return bindata
-sitelabel=label.iloc[testidx,-1]
-assert sum(sitelabel==0)>1000
-siteposlabel=label.iloc[testidx[sitelabel>0],:-1]
-assert all((siteposlabel>0).sum()>1000)
-assert all((siteposlabel==0).sum()>1000)
-print(sum(sitelabel==0))
-print((siteposlabel>0).sum())
-print((siteposlabel==0).sum())
-seglength=1000
-num_folder=246000//seglength
-tissue_specificity_idx_list=[]
-test_idx_list=[]
-any_pos_idx=testidx[np.sum(label.iloc[testidx]>0,axis=1)>0]
-negidx=testidx[np.array(np.sum(label.iloc[testidx],axis=1)==0)]
-site_idx=np.append(np.random.permutation(any_pos_idx)[:1000],np.random.permutation(negidx)[:1000])
+    
+### generating index. ###
 
-assert(all(np.sum(label.iloc[negidx],axis=1)==0))
+regenerate=True
+while regenerate:
+    sitelabel=label.iloc[testidx,-1]
+    siteposlabel=label.iloc[testidx[sitelabel>0],:-1]
+    # print(sum(sitelabel==0))
+    # print((siteposlabel>0).sum())
+    # print((siteposlabel==0).sum())
+    seglength=1000
+    num_folder=246000//seglength
+    tissue_specificity_idx_list=[]
+    test_idx_list=[]
+    any_pos_idx=testidx[np.sum(label.iloc[testidx]>0,axis=1)>0]
+    negidx=testidx[np.array(np.sum(label.iloc[testidx],axis=1)==0)]
+    site_idx=np.append(np.random.permutation(any_pos_idx)[:1000],np.random.permutation(negidx)[:1000])
+    try:
+        assert sum(sitelabel==0)>1000
+        assert all((siteposlabel>0).sum()>1000)
+        assert all((siteposlabel==0).sum()>1000)
+        assert(all(np.sum(label.iloc[negidx],axis=1)==0))
+        assert(all(np.sum(label.iloc[any_pos_idx],axis=1)>0))
+        regenerate=False
+    except:
+        pass    
 
-assert(all(np.sum(label.iloc[any_pos_idx],axis=1)>0))
 for j in range(37):
     selectedidx=label.loc[any_pos_idx,tissuelist[j]]
     selectedidxpos=any_pos_idx[np.where(selectedidx>0)[0]]
@@ -78,15 +84,18 @@ for j in range(37):
     selectedidxneg=testidx[np.where(selectedidx==0)[0]]
     test_idx=np.append(np.random.permutation(selectedidxpos)[:1000],np.random.permutation(selectedidxneg)[:1000])
     test_idx_list.append(test_idx)
-# np.save('%s/tissue_specificityidx.npy'%(folder_path),any_pos_idx)
-# rigidtestidx=np.load('%s/tissue_specificityidx.npy'%(folder_path))
-# testidx=np.load('%s/testidx.npy'%(folder_path))
 np.save('%s/tissue_specificityidx.npy'%(folder_path),np.array(tissue_specificity_idx_list))
 np.save('%s/testidx_balanced.npy'%(folder_path),np.array(test_idx_list))
 np.save('%s/sitetestidx.npy'%(folder_path),site_idx)
+
+### saving gene expression file to tensor ### 
+
 geneexp=pd.read_csv('%s/gene_expression/lg2geneexp.csv'%(folder_path),index_col='GeneName')
 # geneidx=geneexp.index
 torch.save(torch.as_tensor(np.asarray(geneexp)).float().cuda(),'%s/tensor/lg2geneexp.pt'%(folder_path))
+
+### segmenting label and saving to tensor ### 
+
 for i in range(num_folder):
     labelseg=label.iloc[trainidx[seglength*i:seglength*(i+1)]]
     labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
@@ -102,16 +111,17 @@ for j in range(37):
     labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
     torch.save(labelseg,'%s/tensor/label_test_%d.pt'%(folder_path,j))
 
+### processing fasta sequence and saving to tensor ### 
+
 seq_list=[]
 for seq_record in SeqIO.parse('%s/selected.fasta'%(folder_path),format='fasta'):
     sequence=seq_record.seq
     seq_list.append(sequence)
 seq_list=np.asarray(seq_list)
 sequence=fasta2binonehot(seq_list)
-# np.save('%s/sequence.npy'%(folder_path),sequence)
+np.save('%s/sequence.npy'%(folder_path),sequence)
 # sequence=np.load('%s/sequence.npy'%(folder_path))
-print(sequence.shape)
-
+# print(sequence.shape)
 for i in range(num_folder):
     sequenceseg=sequence[trainidx[seglength*i:seglength*(i+1)]]
     sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
@@ -126,7 +136,9 @@ for j in range(37):
     sequenceseg=sequence[test_idx_list[j]]
     sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
     torch.save(sequenceseg,'%s/tensor/sequence_test_%d.pt'%(folder_path,j))
-###################### Geo #############################
+    
+### saving geographic encoding to tensor ###
+
 geo_list=[]
 geo1=np.asarray(pd.read_csv('%s/geo/geo.csv'%(folder_path),header=0))
 for tissue in tissuelist:
@@ -135,7 +147,6 @@ for tissue in tissuelist:
     geo=np.append(geo1[:,6:],geo2[:,6:],axis=-1)
     geo_list.append(geo)
 geo=np.asarray(geo_list).transpose([1,0,2])
-print(geo.shape)
 for i in range(num_folder):
     geoseg=geo[trainidx[seglength*i:seglength*(i+1)]]
     geoseg=torch.as_tensor(geoseg).cuda().float()
@@ -151,6 +162,9 @@ for j in range(37):
     geoseg=torch.as_tensor(geoseg).cuda().float()
     torch.save(geoseg,'%s/tensor/geo_test_%d.pt'%(folder_path,j))
     # print(geo[tissue_specificity_idx_list[j],j:j+1].shape)
+
+### saving hosting gene expression to tensor ###
+
 genelocexp=np.asarray(pd.read_csv('%s/gene_expression/lg2hosting_expression.csv'%(folder_path)))
 for i in range(num_folder):
     tmp=torch.as_tensor(genelocexp[trainidx[i*seglength:(i+1)*seglength]]).float().cuda()
