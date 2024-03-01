@@ -6,7 +6,6 @@ import sys
 import os
 from torch import nn
 import argparse
-from pytorch_lightning.loggers import CSVLogger
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
 from torch.nn import functional as F
