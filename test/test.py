@@ -1,11 +1,19 @@
-import os
-import argparse
-import scipy
-from subprocess import Popen
+import io
 import numpy as np
 import pandas as pd
+import torch
+import sys
+import os
+from torch import nn
+import argparse
+from pytorch_lightning.loggers import CSVLogger
+import pytorch_lightning as pl
+from pytorch_lightning.callbacks import ModelCheckpoint
+from torch.nn import functional as F
+from torch.utils.data import Dataset,DataLoader
+from functools import reduce
+from subprocess import Popen
 from Bio import SeqIO
-from ExpressRM import *
 if torch.cuda.is_available():
     device=torch.device('cuda')
 else:
@@ -31,6 +39,127 @@ def fasta2binonehot(data):
     bindata = np.append(bindata, G, axis=-1)
     bindata = np.append(bindata, U, axis=-1)
     return bindata
+class MultiAdaptPooling(nn.Module):
+    def __init__(self, model, outsizelist=np.array([9, 25, 64])):
+        super(MultiAdaptPooling, self).__init__()
+        self.model = model
+        self.modellist = []
+        for i in outsizelist:
+            self.modellist.append(nn.AdaptiveAvgPool1d(i))
+    def forward(self, x):
+        outlist = []
+        for model in self.modellist:
+            outlist.append(self.model(model(x)))
+        out=torch.cat(outlist, -1)
+        return out
+dim = 64
+droprate = 0.25
+adaptoutsize = 15
+geneinputsize = 28278
+genelocinputsize = geneinputsize
+class ExpressRM(pl.LightningModule):
+    # unet assume seqlength to be ~500
+    def __init__(self,useseq=True,usegeo=True,usetgeo=True,usegene=True,usegenelocexp=True, patchsize=7, patchstride=5, inchan=4, dim=64, kernelsize=7,
+                 adaptoutsize=9, geneoutsize=500, geooutsize=32, droprate=0.25, lr=2e-5):
+        super(ExpressRM, self).__init__()
+        self.useseq = useseq
+        self.usegeo = usegeo
+        self.usegene = usegene
+        self.usegenelocexp = usegenelocexp
+        self.usetgeo = usetgeo
+        self.droprate = droprate
+        self.seqoutsize = 4 * adaptoutsize * dim
+        self.geneoutsize = geneoutsize
+        self.geooutsize = geooutsize
+        self.learning_rate = lr
+        self.posweight=torch.as_tensor(3.0)
+        self.acc = C.BinaryAccuracy()
+        self.ap = C.BinaryAveragePrecision()
+        self.mcc = C.BinaryMatthewsCorrCoef()
+        self.auc = C.BinaryAUROC()
+        self.spec = C.BinarySpecificity()
+        self.sens = C.BinaryPrecision()
+        self.f1 = C.BinaryF1Score()
+        self.save_hyperparameters()
+        self.conv_model = nn.Sequential(
+            nn.Conv1d(in_channels=inchan, out_channels=dim, kernel_size=patchsize, stride=patchstride),
+            nn.BatchNorm1d(dim),
+            nn.LeakyReLU(),
+            nn.Dropout(droprate),
+            nn.Conv1d(in_channels=dim, out_channels=dim, kernel_size=kernelsize),
+            nn.BatchNorm1d(dim),
+            nn.LeakyReLU(),
+            nn.Dropout(droprate),
+            nn.MaxPool1d(2),
+            nn.Conv1d(in_channels=dim, out_channels=dim, kernel_size=kernelsize),
+            nn.BatchNorm1d(dim),
+            nn.LeakyReLU(),
+            nn.Dropout(droprate))
+        self.adaptconv_model = MultiAdaptPooling(
+            nn.Sequential(
+                nn.Conv1d(in_channels=dim, out_channels=dim, kernel_size=kernelsize),
+                nn.BatchNorm1d(dim),
+                nn.LeakyReLU(),
+                nn.Dropout(droprate),
+                nn.Conv1d(in_channels=dim, out_channels=dim, kernel_size=kernelsize),
+                nn.BatchNorm1d(dim),
+                nn.LeakyReLU(),
+                nn.Dropout(droprate),
+                nn.AdaptiveAvgPool1d(adaptoutsize + 2*(kernelsize - 1)),
+                nn.Conv1d(in_channels=dim, out_channels=dim, kernel_size=kernelsize),
+                nn.BatchNorm1d(dim),
+                nn.LeakyReLU(),
+                nn.Dropout(droprate),
+                nn.Conv1d(in_channels=dim, out_channels=dim, kernel_size=kernelsize),
+                nn.BatchNorm1d(dim),
+                nn.LeakyReLU(),
+                nn.Dropout(droprate),
+                nn.Flatten()
+            )
+            , np.array([16, 32, 64, 128]))
+        self.geneenc = nn.Sequential(nn.Linear(28278, 1000), nn.LeakyReLU(), nn.Dropout(self.droprate),
+                                     nn.Linear(1000, self.geneoutsize), nn.LeakyReLU())
+        self.predicationhead = nn.Sequential(
+            # nn.Flatten(1,-1),
+            nn.Linear(self.seqoutsize + self.geneoutsize + 12 + 1, 2048),
+            nn.LeakyReLU(),
+            nn.Dropout(droprate),
+            nn.Linear(2048, 1024),
+            nn.LeakyReLU(),
+            nn.Dropout(droprate),
+            nn.Linear(1024, 1024),
+            nn.LeakyReLU(),
+            nn.Dropout(droprate),
+            nn.Linear(1024, 4),
+        )
+    def configure_optimizers(self):
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+        return optimizer
+    def forward(self, x, geo, gene, genelocexp):
+        batchsize = x.size()[0]
+        tissuesize = genelocexp.size()[1]
+        if self.useseq:
+            x = x.transpose(-1, -2)
+            adaptout = self.adaptconv_model(self.conv_model(x)).unsqueeze(-2).repeat(1,tissuesize,1)
+        else:
+            adaptout = torch.zeros([batchsize,tissuesize, self.seqoutsize]).float().cuda()
+        # seq [N,2304]
+        if self.usegene:
+            # gene= self.geneenc(torch.mean(self.geneatt(geneloc,gene),dim=-2))
+            gene= self.geneenc(gene).unsqueeze(0)
+            gene=gene.repeat([1,batchsize//gene.size()[0],1,1]).flatten(0,1)
+        else:
+            gene= torch.zeros([batchsize,tissuesize,self.geneoutsize]).float().cuda()
+            #[N,37,24]
+        if not self.usetgeo:
+                    geo[:,:,6:]*=0
+        if not self.usegeo:
+                geo[:, :, :6] *= 0
+        if not self.usegenelocexp:
+            genelocexp*=0
+        adaptout = torch.cat([adaptout, gene, geo, genelocexp], dim=-1)
+        out = self.predicationhead(adaptout)
+        return out
 file_path=os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument('-b','--BAM', help='BAM is mandatory, each BAM file represent one transcriptome, seperate using "," ')
