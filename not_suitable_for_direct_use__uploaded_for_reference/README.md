@@ -1,0 +1,1 @@
+this folder contains the files by author. Everything in this folder is based the author's environment, running this in a different environment will almost certainly return error.  to run the model, see train and test folders.

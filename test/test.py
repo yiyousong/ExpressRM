@@ -72,13 +72,6 @@ class ExpressRM(pl.LightningModule):
         self.geooutsize = geooutsize
         self.learning_rate = lr
         self.posweight=torch.as_tensor(3.0)
-        self.acc = C.BinaryAccuracy()
-        self.ap = C.BinaryAveragePrecision()
-        self.mcc = C.BinaryMatthewsCorrCoef()
-        self.auc = C.BinaryAUROC()
-        self.spec = C.BinarySpecificity()
-        self.sens = C.BinaryPrecision()
-        self.f1 = C.BinaryF1Score()
         self.save_hyperparameters()
         self.conv_model = nn.Sequential(
             nn.Conv1d(in_channels=inchan, out_channels=dim, kernel_size=patchsize, stride=patchstride),
