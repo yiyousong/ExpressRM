@@ -3,7 +3,7 @@ code for ExpressRM
 
 for prediction usage check the test folder
 
-the reference genome hg38.knownGene.gtf.gz can be downloaded from https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/ , you should unzip the file to test folder.  
+the reference genome hg38.refGene.gtf.gz can be downloaded from https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/genes/ , you should unzip the file to test folder.  
 the model and default site_file can be downloaded from http://www.rnamd.org/ExpressRM/index.html , you should also download it to test folder.  
 if you plan to provide the sites, the site file should contained single-base sites in grange format stored as .rds file  
 
