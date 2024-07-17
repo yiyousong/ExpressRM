@@ -1,1 +1,0 @@
-python test.py -b BAM/CRR042278_sorted.bam,BAM/CRR042297_sorted.bam -o tmpout -s /data1/yiyou/test/small_site_test.rds
