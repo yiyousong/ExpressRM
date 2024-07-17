@@ -1,0 +1,3 @@
+run prep.R and rungeoR.py first, the second creates many background processes.
+the .py will exit soon, but you should expect one day for the background processes to finish, use htop to check.
+confirm the rungeoR.py finished then run the prep2.py 
