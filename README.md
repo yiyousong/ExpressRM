@@ -7,11 +7,11 @@ Please make sure the following packages are installed in the Python environment:
 python = 3.9.0   
 numpy = 1.24.3  
 pandas = 1.5.3    
-scikit-learn = 1.2.2 
-biopython = 1.78 
-pytorch = 2.0.1    
-pytorch_cuda = 11.7 
-pytorch_lightning  = 2.0.3   
+scikit-learn = 1.2.2  
+biopython = 1.78  
+pytorch = 2.0.1  
+pytorch_cuda = 11.7  
+pytorch_lightning  = 2.0.3    
 
 3.	**Usage instruction** 
 * ExpressRM is used for the study of single-base RNA modification sites in a new condition. 
