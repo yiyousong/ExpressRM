@@ -1,3 +1,4 @@
+#nohup python test.py -b BAM/CRR072990_sorted.bam,BAM/CRR072998_sorted.bam,BAM/CRR073004_sorted.bam -o tmpout -s m6A_hg38_tissue_selected.rds &
 import io
 import numpy as np
 import pandas as pd
@@ -159,6 +160,7 @@ parser.add_argument('-o','--output', default=None, help='foldername for results(
 parser.add_argument('-s','--site', default='%s/m6A_hg38_tissue_selected.rds'%(file_path), help='site_path(grange.rds),default file contain non-site for evaluation, you may want to remove it to save time(~50%)')
 parser.add_argument('-m','--model',default='%s/model.ckpt'%(file_path), help='model_path default same folder')
 parser.add_argument('--refgene', default='%s/hg38.refGene.gtf'%(file_path), help='refgene.gtf location default same folder')
+parser.add_argument('--knowngene', default='%s/hg38.knownGene.gtf'%(file_path), help='knowngene.gtf location default same folder')
 parser.add_argument('--batchsize', default=1000, help='batchsize')
 args, unknown = parser.parse_known_args()
 if args.BAM is None:
@@ -186,7 +188,7 @@ for i in range(len(BAM_list)):
     geneexpfile+='%s/geneexp%d.tab,'%(args.output,i)
 geneexpfile=geneexpfile[:-1]
 Rcommands = ['Rscript gene.R %s %s %s %s %s'%(args.site,geneexpfile,args.output,args.refgene,file_path),
-             'Rscript geo.R %s %s %s/geo.csv'%(args.site,args.refgene,args.output)]
+             'Rscript geo.R %s %s %s/geo.csv'%(args.site,args.knowngene,args.output)]
 for i in range(len(BAM_list)):
     Rcommands.append(
              'Rscript geo.R %s %s/transcriptome%d.gtf %s/tgeo%d.csv'%(args.site,args.output,i,args.output,i))
