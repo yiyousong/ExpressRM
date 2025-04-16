@@ -1,8 +1,9 @@
 ##  ExpressRM
 1.	**Description**  
 We presented ExpressRM, a zero-shot leaning framework for learning RNA modification in unobserved condition types. It enabled the training and validation of models for human m6A in any tissue or cell types of interest without doing m6A profiling experiments.
+[![DOI](https://zenodo.org/badge/722145690.svg)](https://doi.org/10.5281/zenodo.15226699)
 
-2.	**Requirements**  
+3.	**Requirements**  
 Please make sure the following packages are installed in the Python environment:  
 python = 3.9.0   
 numpy = 1.24.3  
@@ -13,7 +14,7 @@ pytorch = 2.0.1
 pytorch_cuda = 11.7  
 pytorch_lightning  = 2.0.3    
 
-3.	**Usage instruction** 
+4.	**Usage instruction** 
 * ExpressRM is used for the study of single-base RNA modification sites in a new condition. 
 * The well-trained model and benchmarking datasets can be downloaded from http://www.rnamd.org/ExpressRM/index.html. 
 * Files in /data_preparation are provided for feature generation. 
