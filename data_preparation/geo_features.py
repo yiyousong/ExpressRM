@@ -12,23 +12,23 @@ parser.add_argument('--refgtfpath', default=None,help='hg38.refGene.gtf')
 parser.add_argument('--knowngtfpath', default=None,help='hg38.knownGene.gtf')
 args, unknown = parser.parse_known_args()
 if args.gtffolder is None:
-    args.gtffolder=args.mainfolder+'transcriptomes/'
+    args.gtffolder=args.mainfolder+'data/transcriptomes/'
 if args.genetabfolder is None:
-    args.genetabfolder=args.mainfolder+'gene_expression_raw/'
+    args.genetabfolder=args.mainfolder+'data/gene_expression/'
 if args.seqpath is None:
-    args.seqpath=args.mainfolder+'m6A_hg38_tissue_selected.rds'
+    args.seqpath=args.mainfolder+'data/input/m6A_hg38_tissue_selected.rds'
 if args.refgtfpath is None:
-    args.refgtfpath=args.mainfolder+'hg38.refGene.gtf'
+    args.refgtfpath=args.mainfolder+'data/hg38/hg38.refGene.gtf'
 if args.knowngtfpath is None:
-    args.knowngtfpath=args.mainfolder+'hg38.knownGene.gtf'
+    args.knowngtfpath=args.mainfolder+'data/hg38/hg38.knownGene.gtf'
 
 os.system('nohup Rscript sequence&others.R %s %s %s %s &'%(args.mainfolder,args.seqpath,args.refgtfpath,args.genetabfolder))
 
 ### looping is done outside the Rscript for parallel processing ###
 commands =[]
-commands.append('nohup Rscript geo_commandarg.R ref %s %s %s %s &' % ( args.mainfolder, args.seqpath, args.knowngtfpath, args.gtffolder))
+commands.append('nohup Rscript geo_features.R ref %s %s %s %s &' % ( args.mainfolder, args.seqpath, args.knowngtfpath, args.gtffolder))
 for file in os.listdir(gtffolder):
-    commands.append('nohup Rscript geo_commandarg.R %s %s %s %s %s &'%(file[:-4],args.mainfolder,args.seqpath,args.knowngtfpath,args.gtffolder))
+    commands.append('nohup Rscript geo_features.R %s %s %s %s %s &'%(file[:-4],args.mainfolder,args.seqpath,args.knowngtfpath,args.gtffolder))
 procs = [ Popen(i, shell=True) for i in commands ]
 for p in procs:
     p.wait()

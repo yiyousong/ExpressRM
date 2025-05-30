@@ -1,4 +1,3 @@
-
 library(plyr)
 library(ggplot2)
 library(ggplot2)
@@ -6,26 +5,14 @@ library(cowplot)
 library(patchwork)
 library(stringr)                          
 library("scales")         
-### generate a matrix containing all needed entries, but ggplot seems won't use use type of matrix ###
-### df=matrix(data=0,nrow = 37,ncol=9)
-### for (i in 14:22){
-###   print(i)
-###   df[,i-4]=perf[!is.na(perf[i]),i]
-### }
-### tmp=c()
-### for (entry in colnames(perf)[14:22]){tmp=c(tmp,strsplit(entry,"_step")[[1]][1])}
-### colnames(df)=tmp
-############################
-AdaptRM_path='/data1/yiyou/logs_1000/AdaptRM1000ep__AdaptRM_2001bp/version_0/metrics.csv'
 library(stringr)
-### needs to stack all entry in one column ###
-path_list=list.files('/data1/yiyou/logs_1000/')
+
+#stack all entry in one column 
+path_list=list.files('./logs_1000/')
 modellist=lapply(strsplit(path_list,'_'), `[[`, 3)
 modellist=unlist(modellist)
-modellist[modellist=='AdaptRM']=
-  '\nAdaptRM\n'
+modellist[modellist=='AdaptRM']='\nAdaptRM\n'
 modellist[modellist=='seqgenegenelocexpgeotissuegeo']='\nExpressRM\n'
-
 modellist=factor(modellist,levels=c("\nAdaptRM\n",
                                     '\nExpressRM\n',
                                     '\nExpressRM (untrained transcriptome)\n'))
@@ -58,12 +45,11 @@ for(j in c(15,18,21)){
     newdata=data.frame(model=rep('\nAdaptRM\n',37),evaluation=rep(evaluation_list[i],37),testset=testset,performance=unlist(perf[i]),tissueidx=1:37,not_trained=rep(F,37))
     sincolmat=rbind(sincolmat,newdata)}}
 sincolmat=ddply(sincolmat,c("model","testset",'tissueidx','evaluation','not_trained'),numcolwise(mean))
-
 sincolmat[sincolmat$not_trained==TRUE,]$model='\nExpressRM (untrained transcriptome)\n'
-
-
-
 selected=sincolmat
+
+
+# visualize model performance after 1000 epochs
 p=ggplot(selected[(selected$evaluation=='acc')&(selected$testset=='tissuetest'),],
         aes(x=model, y=performance,color=model,fill=model))+geom_violin(width=0.8,scale = "width",alpha=0.5)
 g <- ggplot_build(p)
@@ -113,13 +99,12 @@ p8 =p8+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title
             axis.ticks.x=element_blank(),legend.position = "none")
 p9 =p9+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title.y=element_blank(),
             axis.ticks.x=element_blank(),legend.position = "none")
-
-
 p=(p1/p2/p3)|(p4/p5/p6)|(p7/p8/p9)|leg
 p
-ggsave('epoch1000.pdf',p,width=12,height=8)              
+ggsave('./epoch1000.pdf',p,width=12,height=8)              
 
 
+# examine mean metrics of model performance
 c(round(mean(sincolmat[(sincolmat$model=='\nExpressRM (untrained transcriptome)\n')&(sincolmat$evaluation=='acc')&(sincolmat$testset=='test'),]$performance),3),
   round(mean(sincolmat[(sincolmat$model=='\nExpressRM (untrained transcriptome)\n')&(sincolmat$evaluation=='auc')&(sincolmat$testset=='test'),]$performance),3),
   round(mean(sincolmat[(sincolmat$model=='\nExpressRM (untrained transcriptome)\n')&(sincolmat$evaluation=='mcc')&(sincolmat$testset=='test'),]$performance),3),

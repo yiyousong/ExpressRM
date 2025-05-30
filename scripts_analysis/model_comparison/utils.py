@@ -62,14 +62,15 @@ class Residual(nn.Module):
         else:
             out=torch.cat([out,bypass],dim=self.append_dim)
         return out
+
 class View(nn.Module):
     def __init__(self, shape):
         super().__init__()
         self.shape = shape
-
         self.fakemodel=nn.Identity()
     def forward(self, x):
         return x.view(*self.shape)
+
 def PE(x,sig_denom=100,dim=-2):
     xsize=list(x.size())
     idxlength=np.ones(len(xsize))
@@ -86,6 +87,7 @@ def PE(x,sig_denom=100,dim=-2):
     out=out.expand(xsize)
     out=torch.cat([x,out],dim=-1)
     return out
+
 class DilationResidualConv2d(nn.Module):
     def __init__(self,in_chan,out_chan,kernel_size=3,stride=1,dilation=1,convdrop=0.1,padding=-1):
             super(DilationResidualConv2d, self).__init__()
@@ -110,9 +112,9 @@ class DilationResidualConv2d(nn.Module):
             ))
     def forward(self,x):
         return self.model(x)
+
 class GQA(nn.Module):
-##### Batch first #####
-##### [...,S,D] where S means Sequence and D means dimension #####
+     # [...,S,D] where S means Sequence and D means dimension
     def __init__(self,inputsize=512,decoder_inputsize=None,groupnum=8,headspergroup=16,permute=None,mpermute=None,
                  selfatt=False,dim=None,qkdim=128,vdim=128,ffoutsize=None,ffdropout=0.25,attdropout=0.5,addpositiondim=False):
         super(GQA, self).__init__()
@@ -184,7 +186,6 @@ class GQA(nn.Module):
             z=z.flatten(-3)
             out=self.Wz(z)
             return out
-
 
 class GeneVAE(pl.LightningModule):
     def __init__(self, input_size=28278, lambda_diag=10.,
@@ -354,6 +355,7 @@ class GeneVAE(pl.LightningModule):
         def on_training_epoch_end(self, outs):
             # log epoch metric
             self.log("train_epoch_acc", self.acc)
+
 class Show(nn.Module):
     def __init__(self):
         super(Show, self).__init__()
@@ -361,7 +363,6 @@ class Show(nn.Module):
     def forward(self, x):
         print(x.size())
         return x
-
 
 def clones(module, N):
     "Produce N identical layers."
@@ -381,6 +382,7 @@ class MultiAdaptPooling(nn.Module):
             outlist.append(self.model(model(x)))
         out=torch.cat(outlist, -1)
         return out
+
 class MultiModelAdaptPooling(nn.Module):
     def __init__(self, model, outsizelist=np.array([9, 25, 64])):
         super(MultiModelAdaptPooling, self).__init__()

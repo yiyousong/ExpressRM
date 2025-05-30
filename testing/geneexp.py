@@ -1,4 +1,5 @@
 import os
+import scipy
 import numpy as np
 import pandas as pd
 import torch
@@ -9,49 +10,34 @@ import pickle
 adaptoutsize=8
 import argparse
 import sklearn
-parser = argparse.ArgumentParser()
-parser.add_argument('--mainfolder',default=os.path.dirname(os.path.abspath(__file__))+'/',help='folder to dump everything (with/ at end)')
-### must change the following path ###
-folder_path=args.mainfolder[:-1]
 
-os.system('mkdir -p %s/tensor'%(folder_path))
-label=pd.read_csv('%s/selectedlabel.csv'%(folder_path),header=0)
-tissuelist=label.columns[:-1]
-trainidx=np.arange(252009)
+# define directory 
+data_path = './data' 
+input_data_path = f'{data_path}/input'
+srr_path = f'{data_path}/SRR'
+hg38_path = f'{data_path}/hg38'
+
+os.makedirs(input_data_path, exist_ok=True)
+os.makedirs(srr_path, exist_ok=True)
+os.makedirs(hg38_path, exist_ok=True)
+
+selected_label_path = f'{data_path}/selectedlabel.csv'
+gene_exp_path = f'{data_path}/gene_expression/lg2geneexp.csv'
+sequence_path = f'{data_path}/selected.fasta'
+geo_data_path = f'{data_path}/geo/geo.csv'
+
+# load labels and tissue list
+folder_path = './'
+label = pd.read_csv(selected_label_path, header=0)
+tissuelist = label.columns[:-1]
+trainidx = np.arange(252009)
 np.random.shuffle(trainidx)
-testidx=trainidx[:6009]
-trainidx=trainidx[6009:]
-np.save('%s/testidx.npy'%(folder_path),testidx)
-np.save('%s/trainidx.npy'%(folder_path),trainidx)
-# trainidx=np.load('%s/trainidx.npy'%(folder_path))
-# testidx=np.load('%s/testidx.npy'%(folder_path))
+testidx = trainidx[:6009]
+trainidx = trainidx[6009:]
+np.save(f'{folder_path}/test/testidx.npy', testidx)
+np.save(f'{folder_path}/train/trainidx.npy', trainidx)
 
-# torch.save(torch.as_tensor(np.sum(1-label,axis=0)/np.sum(label,axis=0)).cuda().float(),'%s/lossweight.pt'%(folder_path))
-
-def fasta2binonehot(data):
-# data is a list of sequence: [n,seqlength]
-# possibly need list version where seqlength differ
-    data=np.squeeze(np.array(list(map(list, data))))
-    A = np.zeros_like(data,dtype=int)
-    C = np.zeros_like(data,dtype=int)
-    G = np.zeros_like(data,dtype=int)
-    U = np.zeros_like(data,dtype=int)
-    A[data == 'A'] = 1
-    C[data == 'C'] = 1
-    G[data == 'G'] = 1
-    U[data == 'U'] = 1
-    U[data == 'T'] = 1
-    A = A[..., np.newaxis]
-    C = C[..., np.newaxis]
-    G = G[..., np.newaxis]
-    U = U[..., np.newaxis]
-    bindata=np.append(A,C,axis=-1)
-    bindata = np.append(bindata, G, axis=-1)
-    bindata = np.append(bindata, U, axis=-1)
-    return bindata
-    
-### generating index. ###
-
+# generate index
 regenerate=True
 while regenerate:
     sitelabel=label.iloc[testidx,-1]
@@ -88,97 +74,108 @@ for j in range(37):
     selectedidxneg=testidx[np.where(selectedidx==0)[0]]
     test_idx=np.append(np.random.permutation(selectedidxpos)[:1000],np.random.permutation(selectedidxneg)[:1000])
     test_idx_list.append(test_idx)
-np.save('%s/tissue_specificityidx.npy'%(folder_path),np.array(tissue_specificity_idx_list))
-np.save('%s/testidx_balanced.npy'%(folder_path),np.array(test_idx_list))
-np.save('%s/sitetestidx.npy'%(folder_path),site_idx)
+np.save(f'{folder_path}/train/tissue_specificityidx.npy', np.array(tissue_specificity_idx_list))
+np.save(f'{folder_path}/train/testidx_balanced.npy', np.array(test_idx_list))
+np.save(f'{folder_path}/train/sitetestidx.npy', site_idx)
 
-### saving gene expression file to tensor ### 
+# gene expression 
+geneexp=pd.read_csv('%s/gene_expression/lg2geneexp.csv'%(data_path),index_col='GeneName')
+torch.save(torch.as_tensor(np.asarray(geneexp)).float().cuda(),'%s/gene_expression/lg2geneexp.pt'%(data_path))
 
-geneexp=pd.read_csv('%s/gene_expression/lg2geneexp.csv'%(folder_path),index_col='GeneName')
-# geneidx=geneexp.index
-torch.save(torch.as_tensor(np.asarray(geneexp)).float().cuda(),'%s/tensor/lg2geneexp.pt'%(folder_path))
-
-### segmenting label and saving to tensor ### 
-
+# segment label for training
 for i in range(num_folder):
     labelseg=label.iloc[trainidx[seglength*i:seglength*(i+1)]]
     labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
-    torch.save(labelseg,'%s/tensor/label_%d.pt'%(folder_path,i))
+    torch.save(labelseg,'%s/train/label_%d.pt'%(folder_path,i))
 labelseg=label.iloc[site_idx]
 labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
-torch.save(labelseg,'%s/tensor/label_sitetest.pt'%(folder_path))
+torch.save(labelseg,'%s/train/label_sitetest.pt'%(folder_path))
 for j in range(37):
     labelseg=label.iloc[tissue_specificity_idx_list[j]]
     labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
-    torch.save(labelseg,'%s/tensor/label_tissuetest_%d.pt'%(folder_path,j))
+    torch.save(labelseg,'%s/train/label_tissuetest_%d.pt'%(folder_path,j))
     labelseg=label.iloc[test_idx_list[j]]
     labelseg=torch.as_tensor(np.sign(np.asarray(labelseg))).cuda().float()
-    torch.save(labelseg,'%s/tensor/label_test_%d.pt'%(folder_path,j))
+    torch.save(labelseg,'%s/train/label_test_%d.pt'%(folder_path,j))
 
-### processing fasta sequence and saving to tensor ### 
-
+# sequence 
+def fasta2binonehot(data):
+# data is a list of sequence: [n,seqlength]
+    data=np.squeeze(np.array(list(map(list, data))))
+    A = np.zeros_like(data,dtype=int)
+    C = np.zeros_like(data,dtype=int)
+    G = np.zeros_like(data,dtype=int)
+    U = np.zeros_like(data,dtype=int)
+    A[data == 'A'] = 1
+    C[data == 'C'] = 1
+    G[data == 'G'] = 1
+    U[data == 'U'] = 1
+    U[data == 'T'] = 1
+    A = A[..., np.newaxis]
+    C = C[..., np.newaxis]
+    G = G[..., np.newaxis]
+    U = U[..., np.newaxis]
+    bindata=np.append(A,C,axis=-1)
+    bindata = np.append(bindata, G, axis=-1)
+    bindata = np.append(bindata, U, axis=-1)
+    return bindata
 seq_list=[]
-for seq_record in SeqIO.parse('%s/selected.fasta'%(folder_path),format='fasta'):
+for seq_record in SeqIO.parse('%s/selected.fasta'%(data_path),format='fasta'):
     sequence=seq_record.seq
     seq_list.append(sequence)
 seq_list=np.asarray(seq_list)
 sequence=fasta2binonehot(seq_list)
-np.save('%s/sequence.npy'%(folder_path),sequence)
-# sequence=np.load('%s/sequence.npy'%(folder_path))
-# print(sequence.shape)
+np.save('%s/sequence/sequence.npy'%(data_path),sequence)
 for i in range(num_folder):
     sequenceseg=sequence[trainidx[seglength*i:seglength*(i+1)]]
     sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
-    torch.save(sequenceseg,'%s/tensor/sequence_%d.pt'%(folder_path,i))
+    torch.save(sequenceseg,'%s/sequence/sequence_%d.pt'%(data_path,i))
 sequenceseg=sequence[site_idx]
 sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
-torch.save(sequenceseg,'%s/tensor/sequence_sitetest.pt'%(folder_path))
+torch.save(sequenceseg,'%s/sequence/sequence_sitetest.pt'%(data_path))
 for j in range(37):
     sequenceseg=sequence[tissue_specificity_idx_list[j]]
     sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
-    torch.save(sequenceseg,'%s/tensor/sequence_tissuetest_%d.pt'%(folder_path,j))
+    torch.save(sequenceseg,'%s/sequence/sequence_tissuetest_%d.pt'%(data_path,j))
     sequenceseg=sequence[test_idx_list[j]]
     sequenceseg=torch.as_tensor(sequenceseg).cuda().float()
-    torch.save(sequenceseg,'%s/tensor/sequence_test_%d.pt'%(folder_path,j))
+    torch.save(sequenceseg,'%s/sequence/sequence_test_%d.pt'%(data_path,j))
     
-### saving geographic encoding to tensor ###
-
+# geographic encoding features 
 geo_list=[]
-geo1=np.asarray(pd.read_csv('%s/geo/geo.csv'%(folder_path),header=0))
+geo1=np.asarray(pd.read_csv('%s/geo/geo.csv'%(data_path),header=0))
 for tissue in tissuelist:
-    # geo1=np.asarray(pd.read_csv('%s/geo/geo.csv'%(folder_path),header=0))
-    geo2=np.asarray(pd.read_csv('%s/geo/%s.csv'%(folder_path,tissue),header=0))
+    geo2=np.asarray(pd.read_csv('%s/geo/%s.csv'%(data_path,tissue),header=0))
     geo=np.append(geo1[:,6:],geo2[:,6:],axis=-1)
     geo_list.append(geo)
 geo=np.asarray(geo_list).transpose([1,0,2])
 for i in range(num_folder):
     geoseg=geo[trainidx[seglength*i:seglength*(i+1)]]
     geoseg=torch.as_tensor(geoseg).cuda().float()
-    torch.save(geoseg,'%s/tensor/geo_%d.pt'%(folder_path,i))
+    torch.save(geoseg,'%s/geo/geo_%d.pt'%(data_path,i))
 geoseg=geo[site_idx]
 geoseg=torch.as_tensor(geoseg).cuda().float()
-torch.save(geoseg,'%s/tensor/geo_sitetest.pt'%(folder_path))
+torch.save(geoseg,'%s/geo/geo_sitetest.pt'%(data_path))
 for j in range(37):
     geoseg=geo[tissue_specificity_idx_list[j],j:j+1]
     geoseg=torch.as_tensor(geoseg).cuda().float()
-    torch.save(geoseg,'%s/tensor/geo_tissuetest_%d.pt'%(folder_path,j))
+    torch.save(geoseg,'%s/geo/geo_tissuetest_%d.pt'%(data_path,j))
     geoseg=geo[test_idx_list[j],j:j+1]
     geoseg=torch.as_tensor(geoseg).cuda().float()
-    torch.save(geoseg,'%s/tensor/geo_test_%d.pt'%(folder_path,j))
+    torch.save(geoseg,'%s/geo/geo_test_%d.pt'%(data_path,j))
     # print(geo[tissue_specificity_idx_list[j],j:j+1].shape)
 
-### saving hosting gene expression to tensor ###
-
-genelocexp=np.asarray(pd.read_csv('%s/gene_expression/lg2hosting_expression.csv'%(folder_path)))
+# expression of genes that overlap with target sites
+genelocexp=np.asarray(pd.read_csv('%s/gene_expression/lg2hosting_expression.csv'%(data_path)))
 for i in range(num_folder):
     tmp=torch.as_tensor(genelocexp[trainidx[i*seglength:(i+1)*seglength]]).float().cuda()
-    torch.save(tmp,'%s/tensor/genelocexp_%d.pt'%(folder_path,i))
+    torch.save(tmp,'%s/gene_expression/genelocexp_%d.pt'%(data_path,i))
 tmp=torch.as_tensor(genelocexp[site_idx]).float().cuda()
 print(tmp.shape)
-torch.save(tmp,'%s/tensor/genelocexp_sitetest.pt'%(folder_path))
+torch.save(tmp,'%s/gene_expression/genelocexp_sitetest.pt'%(data_path))
 
 for j in range(37):
     tmp=torch.as_tensor(genelocexp[tissue_specificity_idx_list[j],j:j+1]).float().cuda()
-    torch.save(tmp,'%s/tensor/genelocexp_tissuetest_%d.pt'%(folder_path,j))
+    torch.save(tmp,'%s/gene_expression/genelocexp_tissuetest_%d.pt'%(data_path,j))
     tmp=torch.as_tensor(genelocexp[test_idx_list[j],j:j+1]).float().cuda()
-    torch.save(tmp,'%s/tensor/genelocexp_test_%d.pt'%(folder_path,j))
+    torch.save(tmp,'%s/gene_expression/genelocexp_test_%d.pt'%(data_path,j))

@@ -1,28 +1,15 @@
-
 library(ggplot2)
 library(cowplot)
 library(patchwork)
 library(stringr)                          
 library("scales")         
-### generate a matrix containing all needed entries, but ggplot seems won't use use type of matrix ###
-### df=matrix(data=0,nrow = 37,ncol=9)
-### for (i in 14:22){
-###   print(i)
-###   df[,i-4]=perf[!is.na(perf[i]),i]
-### }
-### tmp=c()
-### for (entry in colnames(perf)[14:22]){tmp=c(tmp,strsplit(entry,"_step")[[1]][1])}
-### colnames(df)=tmp
-############################
-
 library(stringr)
-### needs to stack all entry in one column ###
-path_list=list.files('/data1/yiyou/lightning_logs/')
+
+# stack all entry in one column 
+path_list=list.files('./lightning_logs/')
 modellist=lapply(strsplit(path_list,'_'), `[[`, 3)
 modellist=unlist(modellist)
-modellist[modellist=='AdaptRM']=
-  '\nAdaptRM\n'
-
+modellist[modellist=='AdaptRM']= '\nAdaptRM\n'
 modellist[modellist=='seq']='\nsequence\n'
 modellist[modellist=='seqgene']='\nsequence\n+gene expression\n'
 modellist[modellist=='seqgenegenelocexpgeotissuegeo']='\nsequence\n+gene expression\n+hosting expression\n+geographic encoding\n+transcriptome geographic encoding\n'
@@ -49,7 +36,7 @@ for(k in 1:length(path_list)){
   metricpath=path_list[k]
   testidx=unlist(strsplit(unlist(str_split(metricpath,'_'))[2],','))
   model=modellist[k]
-  metric=read.table(paste0('/data1/yiyou/lightning_logs/',metricpath,'/version_0/metrics.csv'),header = TRUE,sep=',')
+  metric=read.table(paste0('./lightning_logs/',metricpath,'/version_0/metrics.csv'),header = TRUE,sep=',')
   if (length(colnames(metric))>110){
   for (j in c(50,62,83)){
     idx=j:(j+2)
@@ -61,7 +48,7 @@ for(k in 1:length(path_list)){
       sincolmat=rbind(sincolmat,data.frame(model=rep(model,37),evaluation=rep(evaluation_list[i],37),testset=testset,performance=unlist(perf[i]),tissueidx=1:37,not_trained=0:36 %in% testidx))
     }}}
     }
-adaptperf=read.table('/data1/yiyou/lightning_logs/AdaptRM__AdaptRM_2001bp/version_0/metrics.csv',header = TRUE,sep=',')
+adaptperf=read.table('./lightning_logs/AdaptRM__AdaptRM_2001bp/version_0/metrics.csv',header = TRUE,sep=',')
 for(j in c(15,18,21)){
   idx=j:(j+2)
   tmp=adaptperf[,idx]
@@ -83,7 +70,9 @@ sincolmat=ddply(sincolmat,c("model","testset",'tissueidx','evaluation','not_trai
 colors11=c("#F8766D","#DB8E00","#AEA200","#64B200","#00BD5C","#00C1A7","#00BADE","#00A6FF","#B385FF","#EF67EB","#FF63B6")
 # Identify hex codes
 #,fill = after_scale(alpha('black', 0.1))
-### plot ###
+
+
+# visualize model performance
 selected=sincolmat[sincolmat$not_trained==F,]
 #,fill = after_scale(alpha('black', 0.1))
 p1 <- ggplot(selected[(selected$evaluation=='acc')&(selected$testset=='tissuetest'),],
@@ -114,10 +103,7 @@ p5=p5+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title.
 p6=p6+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title.y=element_blank(),
             axis.ticks.x=element_blank(),legend.position = "none")
 p=(p1/p2/p3)|(p4/p5/p6)|leg
-ggsave('tissuetest.pdf',p,width=10,height=8)              
-
-
-
+ggsave('./tissuetest.pdf',p,width=10,height=8)              
 
 selected=sincolmat[sincolmat$not_trained==F,]
 #,fill = after_scale(alpha('black', 0.1))
@@ -149,12 +135,7 @@ p5=p5+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title.
 p6=p6+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title.y=element_blank(),
             axis.ticks.x=element_blank(),legend.position = "none")
 p=(p1/p2/p3)|(p4/p5/p6)|leg
-ggsave('sitetest.pdf',p,width=10,height=8)              
-
-
-
-
-
+ggsave('./sitetest.pdf',p,width=10,height=8)              
 
 selected=sincolmat[sincolmat$not_trained==F,]
 #,fill = after_scale(alpha('black', 0.1))
@@ -186,9 +167,10 @@ p5=p5+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title.
 p6=p6+theme(axis.title.x=element_blank(),axis.text.x=element_blank(),axis.title.y=element_blank(),
             axis.ticks.x=element_blank(),legend.position = "none")
 p=(p1/p2/p3)|(p4/p5/p6)|leg
-ggsave('test.pdf',p,width=10,height=8)    
+ggsave('./test.pdf',p,width=10,height=8)    
 
 
+# examine mean metrics of model performance
 mean(sincolmat[(sincolmat$model=='\nsequence\n+gene expression\n+hosting expression\n+geographic encoding\n+transcriptome geographic encoding\n')&(sincolmat$evaluation=='acc')&(sincolmat$testset=='tissuetest')&(!sincolmat$not_trained),]$performance)
 mean(sincolmat[(sincolmat$model=='\nsequence\n+gene expression\n+hosting expression\n+geographic encoding\n+transcriptome geographic encoding\n')&(sincolmat$evaluation=='auc')&(sincolmat$testset=='tissuetest')&(!sincolmat$not_trained),]$performance)
 mean(sincolmat[(sincolmat$model=='\nsequence\n+gene expression\n+hosting expression\n+geographic encoding\n+transcriptome geographic encoding\n')&(sincolmat$evaluation=='acc')&(sincolmat$testset=='tissuetest')&(sincolmat$not_trained),]$performance)

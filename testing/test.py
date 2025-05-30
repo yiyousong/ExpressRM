@@ -1,4 +1,4 @@
-#nohup python test.py -b BAM/CRR072990_sorted.bam,BAM/CRR072998_sorted.bam,BAM/CRR073004_sorted.bam -o tmpout -s m6A_hg38_tissue_selected.rds &
+nohup python ./ExpressRM/testing/test.py -b ./data/input/CRR042278_sorted.bam, ./data/input/CRR073004_sorted.bam -o ./test -s ./data/input/m6A_hg38_tissue_selected.rds
 import io
 import numpy as np
 import pandas as pd
@@ -58,7 +58,6 @@ adaptoutsize = 15
 geneinputsize = 28278
 genelocinputsize = geneinputsize
 class ExpressRM(pl.LightningModule):
-    # unet assume seqlength to be ~500
     def __init__(self,useseq=True,usegeo=True,usetgeo=True,usegene=True,usegenelocexp=True, patchsize=7, patchstride=5, inchan=4, dim=64, kernelsize=7,
                  adaptoutsize=9, geneoutsize=500, geooutsize=32, droprate=0.25, lr=2e-5):
         super(ExpressRM, self).__init__()
@@ -157,10 +156,10 @@ file_path=os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument('-b','--BAM', help='BAM is mandatory, each BAM file represent one transcriptome, seperate using "," ')
 parser.add_argument('-o','--output', default=None, help='foldername for results(intermediates included),output will be prediction.csv and sitepredictionin this folder. Recommended to set manually for cases using more than one transcriptomes.  default remove 4 letters from BAMpath(xxx from xxx.bam)')
-parser.add_argument('-s','--site', default='%s/m6A_hg38_tissue_selected.rds'%(file_path), help='site_path(grange.rds),default file contain non-site for evaluation, you may want to remove it to save time(~50%)')
-parser.add_argument('-m','--model',default='%s/model.ckpt'%(file_path), help='model_path default same folder')
-parser.add_argument('--refgene', default='%s/hg38.refGene.gtf'%(file_path), help='refgene.gtf location default same folder')
-parser.add_argument('--knowngene', default='%s/hg38.knownGene.gtf'%(file_path), help='knowngene.gtf location default same folder')
+parser.add_argument('-s','--site', default='%s/data/input/m6A_hg38_tissue_selected.rds'%(file_path), help='site_path(grange.rds),default file contain non-site for evaluation, you may want to remove it to save time(~50%)')
+parser.add_argument('-m','--model',default='%s/model/model.ckpt'%(file_path), help='model_path default same folder')
+parser.add_argument('--refgene', default='%s/data/hg38/hg38.refGene.gtf'%(file_path), help='refgene.gtf location default same folder')
+parser.add_argument('--knowngene', default='%s/data/hg38/hg38.knownGene.gtf'%(file_path), help='knowngene.gtf location default same folder')
 parser.add_argument('--batchsize', default=1000, help='batchsize')
 args, unknown = parser.parse_known_args()
 if args.BAM is None:
@@ -175,8 +174,8 @@ os.system('mkdir -p %s'%(args.output))
 commands =[]
 for i in range(len(BAM_list)):
     BAM=BAM_list[i]
-    commands.append('stringtie %s -e -G %s -A %s/geneexp%d.tab > %s/tmp.tmp'%(BAM,args.refgene,args.output,i,args.output))
-    commands.append('stringtie %s -o %s/transcriptome%d.gtf > %s/tmp.tmp' % (BAM, args.output,i,args.output))
+    commands.append('stringtie %s -e -G %s -A %s/data/gene_expression/geneexp%d.tab > %s/tmp.tmp'%(BAM,args.refgene,args.output,i,args.output))
+    commands.append('stringtie %s -o %s/data/transcriptomes/transcriptome%d.gtf > %s/data/transcriptomes/tmp.tmp' % (BAM, args.output,i,args.output))
 print('stringtie preprocessing this could take a long time')
 procs = [ Popen(i, shell=True) for i in commands ]
 for p in procs:
@@ -185,19 +184,19 @@ for p in procs:
 print('calculating geographic encoding may take huge amounts of time(~ oneday for default 252009 sites)')
 geneexpfile=''
 for i in range(len(BAM_list)):
-    geneexpfile+='%s/geneexp%d.tab,'%(args.output,i)
+    geneexpfile+='%s/data/gene_expression/geneexp%d.tab,'%(args.output,i)
 geneexpfile=geneexpfile[:-1]
 Rcommands = ['Rscript gene.R %s %s %s %s %s'%(args.site,geneexpfile,args.output,args.refgene,file_path),
-             'Rscript geo.R %s %s %s/geo.csv'%(args.site,args.knowngene,args.output)]
+             'Rscript geo.R %s %s %s/data/geo/geo.csv'%(args.site,args.knowngene,args.output)]
 for i in range(len(BAM_list)):
     Rcommands.append(
-             'Rscript geo.R %s %s/transcriptome%d.gtf %s/tgeo%d.csv'%(args.site,args.output,i,args.output,i))
+             'Rscript geo.R %s %s/data/transcriptomes/transcriptome%d.gtf %s/geo/tgeo%d.csv'%(args.site,args.output,i,args.output,i))
 procs = [ Popen(i, shell=True) for i in Rcommands ]
 for p in procs:
    p.wait()
 print('loading processed data')
 seq_list=[]
-for seq_record in SeqIO.parse('%s/sequence.fasta'%(args.output),format='fasta'):
+for seq_record in SeqIO.parse('%s/data/sequence/sequence.fasta'%(args.output),format='fasta'):
     sequence=seq_record.seq
     seq_list.append(sequence)
 seq_list=np.asarray(seq_list)
@@ -205,13 +204,13 @@ sequence=fasta2binonehot(seq_list)
 print('sequence encoded')
 geo_list=[]
 for i in range(len(BAM_list)):
-    refgeo=np.asarray(pd.read_csv('%s/geo.csv'%(args.output)))[:,6:]
-    tgeo=np.asarray(pd.read_csv('%s/tgeo%d.csv'%(args.output,i)))[:,6:]
+    refgeo=np.asarray(pd.read_csv('%s/data/geo/geo.csv'%(args.output)))[:,6:]
+    tgeo=np.asarray(pd.read_csv('%s/data/geo/tgeo%d.csv'%(args.output,i)))[:,6:]
     geo=np.append(refgeo,tgeo,axis=-1)
     geo_list.append(geo)
 geo=np.array(geo_list).transpose([1,0,2])
-hostgeneexp=np.asarray(pd.read_csv('%s/lg2hosting_expression.csv'%(args.output)))
-geneexp=np.asarray(pd.read_csv('%s/lg2geneexp.csv'%(args.output),index_col=0))
+hostgeneexp=np.asarray(pd.read_csv('%s/data/gene_expression/lg2hosting_expression.csv'%(args.output)))
+geneexp=np.asarray(pd.read_csv('%s/data/gene_expression/lg2geneexp.csv'%(args.output),index_col=0))
 print('loading model')
 model=ExpressRM().load_from_checkpoint(args.model,map_location=device)
 model.eval()
@@ -225,5 +224,5 @@ for i in range(int(np.ceil(len(sequence)/batchsize))):
     pred=model.forward(sequence[batchsize*i:batchsize*(i+1)], geo[batchsize*i:batchsize*(i+1)], geneexp, hostgeneexp[batchsize*i:batchsize*(i+1)]).detach().cpu().numpy()
     pred_list.append(pred)
 pred=np.concatenate(pred_list,axis=0)
-np.savetxt('%s/prediction.csv'%(args.output),pred[...,0], delimiter=",")
-np.savetxt('%s/siteprediction.csv'%(args.output),pred[...,3], delimiter=",")
+np.savetxt('%s/test/prediction.csv'%(args.output),pred[...,0], delimiter=",")
+np.savetxt('%s/test/siteprediction.csv'%(args.output),pred[...,3], delimiter=",")

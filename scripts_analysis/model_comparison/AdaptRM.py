@@ -1,12 +1,3 @@
-### the comments in the script are most likely outdated and wrong. ###
-### this script contain many unused sections and variables. as it is copied and modified from the ExpressRM script ###
-### consider only reading the "class AdaptRM" part or not at all ###
-
-dim = 64
-droprate = 0.25
-adaptoutsize = 15
-geneinputsize = 28278
-genelocinputsize = geneinputsize
 from Layers import *
 import io
 import numpy as np
@@ -24,27 +15,39 @@ from torch.utils.data import Dataset,DataLoader
 import torchmetrics.classification as C
 import gc
 from functools import reduce
-# from torch.utils.tensorboard import SummaryWriter
-# writer = SummaryWriter()
-# torch.set_num_threads(10)
+from torch.utils.tensorboard import SummaryWriter
+
+# define directory
+folder_prefix = './'
+data_location = './data'
+
+# configuration parameters
+dim = 64
+droprate = 0.25
+adaptoutsize = 15
+geneinputsize = 28278
+genelocinputsize = geneinputsize
+
+# initialize 
+writer = SummaryWriter()
+torch.set_num_threads(10)
+
+# argument parser setup
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_path', default=None, help='do not change the args without description, they are copied from ExpressRM file and is most likely unused. they are not deleted because certain unused script may call them')
-parser.add_argument('--seq', default=True, help='')
+parser.add_argument('--model_path', default=None, help='add path to continue training else start anew')
+parser.add_argument('--seq', default=True, help='1 for true,default false')
 parser.add_argument('--gene', default=False, help='')
 parser.add_argument('--genelocexp', default=False, help='')
 parser.add_argument('--geo', default=False, help='')
 parser.add_argument('--tgeo', default=False, help='')
-parser.add_argument('--featurelist', default=None, help='')
-parser.add_argument('--radius', default=1000, help='sequence length=2*radius+1')
-parser.add_argument('--minepoch', default=200, help='minimum epoch(early stopping)')
-parser.add_argument('--maxepoch', default=200, help='maximum epoch(early stopping)')
+parser.add_argument('--featurelist', default=None, help='1,0,0,0,0\n sequence,gene,genelocexp,geo,tgeo')
+parser.add_argument('--radius', default=1000, help='2*radius+1')
+parser.add_argument('--epoch', default=0, help='')
 parser.add_argument('--prefix', default='AdaptRM', help='')
 parser.add_argument('--autoprefix', default=True, help='')
-parser.add_argument('--trainlist', default=None, help='')
-parser.add_argument('--testlist', default=None, help='')
-parser.add_argument('--precision', default=32, help='precision')
-parser.add_argument('--out_folder', default='/gpfs/work/bio/yiyousong15/ExpressRMV1.1', help='change this to your output folder. model and performance are save here')
-parser.add_argument('--data_location', default='/gpfs/work/bio/yiyousong15/ExpressRMV1.1/tensor/', help='change this to your output folder. data should be located in this folder')
+parser.add_argument('--trainlist', default=None, help='use testlist')
+parser.add_argument('--testlist', default=None, help='drop idx (during training) or leaveoneout')
+parser.add_argument('--precision', default=32, help='drop idx (during training) or leaveoneout')
 args, unknown = parser.parse_known_args()
 if args.featurelist is None:
     useseq = bool(int(args.seq))
@@ -71,6 +74,7 @@ if args.autoprefix != 'false':
     prefix += '__AdaptRM'
 in_chan = 4
 prefix += '_%dbp' % (2 * radius + 1)
+
 def weightlabel(labelwithsite):
     label=labelwithsite[...,:-1]
     sitelabel = labelwithsite[...,-1:]
@@ -84,23 +88,24 @@ def weightlabel(labelwithsite):
         print(label)
         assert all(weight >= 0)
     return label,sitelabel,weight
+
 class trainDataset(Dataset):
     def __init__(self, dataidx=None,tissueidx=np.arange(37),radius=1000):
         self.radius=radius
-        self.gene=torch.load('%slg2geneexp.pt'%(data_location)).transpose(1,0)
+        self.gene=torch.load('%s/gene_expression/lg2geneexp.pt'%(data_location)).transpose(1,0)
         self.dataidx=dataidx
         self.tissueidx=np.asarray(tissueidx)
 
     def __getitem__(self, idx):
         # label [B,30+]
         idx=self.dataidx[idx]
-        label=torch.load('%s/label_%d.pt'%(data_location,idx))
+        label=torch.load('%s/train/label_%d.pt'%(folder_prefix,idx))
         label,sitelabel,weight=weightlabel(label)
-        sequence=torch.load('%s/sequence_%d.pt'%(data_location,idx))
+        sequence=torch.load('%s/sequence/sequence_%d.pt'%(data_location,idx))
         if self.radius!=1000:
             sequence=sequence[:,1000-self.radius:1001+self.radius]
-        geo=torch.load('%s/geo_%d.pt'%(data_location,idx))
-        genelocexp=torch.load('%s/genelocexp_%d.pt'%(data_location,idx))
+        geo=torch.load('%s/geo/geo_%d.pt'%(data_location,idx))
+        genelocexp=torch.load('%s/gene_expression/genelocexp_%d.pt'%(data_location,idx))
         return label[:,self.tissueidx],sequence,geo[:,self.tissueidx],self.gene[self.tissueidx],genelocexp[:,self.tissueidx],sitelabel,weight[:,self.tissueidx],idx
 
     def __len__(self):
@@ -109,32 +114,32 @@ class trainDataset(Dataset):
 class testDataset(Dataset):
     def __init__(self, dataprefix='test',radius=1000):
         self.radius=radius
-        self.gene=torch.load('%slg2geneexp.pt'%(data_location)).transpose(1,0)
+        self.gene=torch.load('%s/gene_expression/lg2geneexp.pt'%(data_location)).transpose(1,0)
         self.dataprefix=dataprefix
     def __getitem__(self, idx):
-        # label [B,1]
-        label=torch.load('%s/label_%s_%d.pt'%(data_location,self.dataprefix,idx))
+        label=torch.load('%s/train/label_%s_%d.pt'%(folder_prefix,self.dataprefix,idx))
         label,sitelabel,weight=weightlabel(label)
-        sequence=torch.load('%s/sequence_%s_%d.pt'%(data_location,self.dataprefix,idx))
+        sequence=torch.load('%s/sequence/sequence_%s_%d.pt'%(data_location,self.dataprefix,idx))
         if self.radius!=1000:
             sequence=sequence[:,1000-self.radius:1001+self.radius]
-        geo=torch.load('%s/geo_%s_%d.pt'%(data_location,self.dataprefix,idx))
-        genelocexp=torch.load('%s/genelocexp_%s_%d.pt'%(data_location,self.dataprefix,idx))
+        geo=torch.load('%s/geo/geo_%s_%d.pt'%(data_location,self.dataprefix,idx))
+        genelocexp=torch.load('%s/gene_expression/genelocexp_%s_%d.pt'%(data_location,self.dataprefix,idx))
         return label[:,idx:idx+1],sequence,geo,self.gene[idx:idx+1],genelocexp,sitelabel,weight[:,idx:idx+1],idx
     def __len__(self):
         return 37
+
 class sitetestDataset(Dataset):
     def __init__(self,radius=1000):
         #use summed label across tissue on purpose
         self.radius=radius
-        self.gene=torch.load('%slg2geneexp.pt'%(data_location)).transpose(1,0)
-        self.label=torch.load('%s/label_sitetest.pt'%(data_location))
+        self.gene=torch.load('%s/gene_expression/lg2geneexp.pt'%(data_location)).transpose(1,0)
+        self.label=torch.load('%s/train/label_sitetest.pt'%(folder_prefix))
         _,self.sitelabel,self.weight=weightlabel(self.label)
-        self.sequence=torch.load('%s/sequence_sitetest.pt'%(data_location))
+        self.sequence=torch.load('%s/sequence/sequence_sitetest.pt'%(data_location))
         if self.radius!=1000:
             self.sequence=self.sequence[:,1000-self.radius:1001+self.radius]
-        self.geo=torch.load('%s/geo_sitetest.pt'%(data_location))
-        self.genelocexp=torch.load('%s/genelocexp_sitetest.pt'%(data_location))
+        self.geo=torch.load('%s/geo/geo_sitetest.pt'%(data_location))
+        self.genelocexp=torch.load('%s/gene_expression/genelocexp_sitetest.pt'%(data_location))
     def __getitem__(self, idx):
         # label [B,37]
         return self.sitelabel,self.sequence,self.geo[:,idx:idx+1],self.gene[idx:idx+1],self.genelocexp[:,idx:idx+1],self.sitelabel,self.weight[:,idx:idx+1],idx
@@ -159,7 +164,6 @@ class PLDataModule(pl.LightningDataModule):
         return [DataLoader(self.test_dataset, 1),DataLoader(self.tissuetest_dataset, 1),DataLoader(self.sitetest_dataset, 1)]
 
 class AdaptRM(pl.LightningModule):
-    # unet assume seqlength to be ~500
     def __init__(self, patchsize=7, patchstride=5, inchan=4, dim=64, kernelsize=7,
                  adaptoutsize=9, geneoutsize=32, geooutsize=32, droprate=0.25, lr=2e-5):
         super(AdaptRM, self).__init__()
@@ -184,14 +188,11 @@ class AdaptRM(pl.LightningModule):
                               nn.Linear(7 * 64,1000),nn.LeakyReLU(),nn.Dropout(droprate),nn.Linear(1000,38)
                               )
 
-
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
         return optimizer
 
     def forward(self, x, **kwargs):
-
         out = self.model(x)
         return out
 
@@ -264,8 +265,12 @@ class AdaptRM(pl.LightningModule):
             self.log(f"{testlabel[dataloader_idx]}_mcc", self.mcc(pred, y), on_epoch=True, on_step=True)
 
 if __name__ == '__main__':
-    minepoch=int(args.minepoch)
-    maxepoch=int(args.maxepoch)
+    if int(args.epoch)==0:
+        minepoch=200
+        maxepoch=200
+    else:
+        minepoch=int(args.epoch)
+        maxepoch=int(args.epoch)
     # print('model will save to %s/model/%s.pt'%(folder_prefix,prefix))
     checkpoint_callback = ModelCheckpoint(dirpath='%s/model/%s/'%(folder_prefix,prefix))
     logger = CSVLogger("lightning_logs", name=prefix)
@@ -286,18 +291,16 @@ if __name__ == '__main__':
         # limit_val_batches=1,
         # use limit_XXX_batches=? to run part of the sample(for testing later steps)
         # for example when checking gpu usage using log_gpu_memory='all'
-
-        #     default_root_dir=log_path,
-        #     auto_scale_batch_size=True,
-        #     auto_lr_find='lr',
-        #     track_grad_norm='inf',
-        #     gradient_clip_val=1, gradient_clip_algorithm="value",
-        #     weights_summary='top',
-        #     #profiler=pl.profiler.Advanced_profiler
-        #     gpus=1,auto_select_gpus=True,
+        # default_root_dir=log_path,
+        # auto_scale_batch_size=True,
+        # auto_lr_find='lr',
+        # track_grad_norm='inf',
+        # gradient_clip_val=1, gradient_clip_algorithm="value",
+        # weights_summary='top',
+        # profiler=pl.profiler.Advanced_profiler
+        # gpus=1,auto_select_gpus=True,
         # use benchmark=True when input size does not change
         # setting deterministic=True give reproducible result but harms performance
-
     )
 
     model = AdaptRM()

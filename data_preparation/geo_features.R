@@ -11,14 +11,14 @@ library(dplyr)
 library(plyr)
 gene_exp_list=c()
 header_list=c()
-### the terminal input should be the filename of the transcriptome. ref for reference genome ###
-### looping is done outside the script for parallel processing ###
+# the terminal input should be the filename of the transcriptome. ref for reference genome 
+# looping is done outside the script for parallel processing 
 parameters=commandArgs(trailingOnly = TRUE)
 tissuename=parameters[1]
-if (is.na(parameters[2])){mainfolder='/data1/yiyou/ExpressRM/'}else{mainfolder=parameters[2]}
-if (is.na(parameters[3])){seqpath=paste0(mainfolder,'m6A_hg38_tissue_selected.rds')}else{seqpath=parameters[3]}
-if (is.na(parameters[4])){refgtfpath=paste0(mainfolder,'hg38.knownGene.gtf')}else{refgtfpath=parameters[4]}
-if (is.na(parameters[5])){gtffolder=paste0(mainfolder,'transcriptomes/')}else{gtffolder=parameters[5]}
+if (is.na(parameters[2])){mainfolder='./'}else{mainfolder=parameters[2]}
+if (is.na(parameters[3])){seqpath=paste0(mainfolder,'data/hg38/m6A_hg38_tissue_selected.rds')}else{seqpath=parameters[3]}
+if (is.na(parameters[4])){refgtfpath=paste0(mainfolder,'data/hg38/hg38.knownGene.gtf')}else{refgtfpath=parameters[4]}
+if (is.na(parameters[5])){gtffolder=paste0(mainfolder,'data/transcriptomes/')}else{gtffolder=parameters[5]}
 seq2001=readRDS(seqpath)
 landmarkTX=function(seq2001,geogtf,matchtype='CDS'){
   geo=matrix(data=0,nrow=length(seq2001),ncol=12)

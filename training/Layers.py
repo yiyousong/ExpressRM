@@ -1,6 +1,3 @@
-### this file may contain unused scripts ###
-### training does not need to modify this script and you do not need to read this script ###
-### comments below could be outdated ###
 import numpy as np
 import copy
 from torch import nn
